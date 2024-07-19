@@ -1,0 +1,27 @@
+# permissions for end users to edit garmservers.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: garm-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: garmserver-editor-role
+rules:
+- apiGroups:
+  - garm-operator.mercedes-benz.com
+  resources:
+  - garmservers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - garm-operator.mercedes-benz.com
+  resources:
+  - garmservers/status
+  verbs:
+  - get

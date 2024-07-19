@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 
 	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -209,6 +210,19 @@ func run() error {
 		defer cancel()
 	}
 
+	if err = (&garmcontroller.GarmServerReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "GarmServer")
+		os.Exit(1)
+	}
+	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
+		if err = (&garmoperatorv1alpha1.GarmServer{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "GarmServer")
+			os.Exit(1)
+		}
+	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

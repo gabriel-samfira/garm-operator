@@ -40,6 +40,7 @@ type OperatorConfig struct {
 	PoolConcurrency         int           `koanf:"poolConcurrency" validate:"gte=1" yaml:"poolConcurrency"`
 	RunnerReconciliation    bool          `koanf:"runnerReconciliation" yaml:"runnerReconciliation"`
 	LogVerbosityLevel       int           `koanf:"logVerbosityLevel" validate:"gte=0,lte=5" yaml:"logVerbosityLevel"`
+	GarmContainerImage      string        `koanf:"garmContainerImage" validate:"required,url" yaml:"garmContainerImage"`
 }
 
 type AppConfig struct {

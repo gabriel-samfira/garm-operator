@@ -30,4 +30,6 @@ const (
 
 	// default values for controller logging configuration
 	DefaultLogVerbosityLevel = 0
+
+	DefaultGarmContainerImage = "ghcr.io/cloudbase/garm:v0.1.4"
 )

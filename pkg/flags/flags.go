@@ -39,6 +39,8 @@ func InitiateFlags() *pflag.FlagSet {
 
 	f.Int("operator-log-verbosity-level", defaults.DefaultLogVerbosityLevel, "Specifies the log verbosity level (0-5).")
 
+	f.String("operator-garm-container-image", defaults.DefaultGarmContainerImage, "The URL of the GARM server container image. This will be used as a fallback if no image is set via CR.")
+
 	f.String("garm-server", "", "The address of the GARM server")
 	f.String("garm-username", "", "The username for the GARM server")
 	f.String("garm-password", "", "The password for the GARM server")

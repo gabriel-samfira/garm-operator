@@ -1,0 +1,9 @@
+apiVersion: garm-operator.mercedes-benz.com/v1alpha1
+kind: GarmServer
+metadata:
+  labels:
+    app.kubernetes.io/name: garm-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: garmserver-sample
+spec:
+  # TODO(user): Add fields here
