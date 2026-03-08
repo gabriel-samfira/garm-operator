@@ -12,17 +12,17 @@ func TestCompare(t *testing.T) {
 	}{
 		{
 			name:    "is equal",
-			version: "v0.1.5",
+			version: "v0.2.0-alpha",
 			isValid: true,
 		},
 		{
 			name:    "garm is newer",
-			version: "v0.1.6",
+			version: "v0.2.1",
 			isValid: true,
 		},
 		{
-			name:    "garm version to old",
-			version: "v0.1.4",
+			name:    "garm version too old",
+			version: "v0.1.5",
 			isValid: false,
 		},
 		{
