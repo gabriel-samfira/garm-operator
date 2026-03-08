@@ -87,6 +87,9 @@ func UpdatePool(ctx context.Context, garmClient garmClient.PoolClient, pool *gar
 		RunnerBootstrapTimeout: &pool.Spec.RunnerBootstrapTimeout,
 		ExtraSpecs:             json.RawMessage([]byte(pool.Spec.ExtraSpecs)),
 		GitHubRunnerGroup:      &pool.Spec.GitHubRunnerGroup,
+		EnableShell:            &pool.Spec.EnableShell,
+		Priority:               &pool.Spec.Priority,
+		TemplateID:             pool.Spec.TemplateID,
 	}
 	if image != nil {
 		poolParams.Image = image.Spec.Tag
@@ -137,6 +140,9 @@ func CreatePool(ctx context.Context, garmClient garmClient.PoolClient, pool *gar
 		RunnerBootstrapTimeout: pool.Spec.RunnerBootstrapTimeout,
 		ExtraSpecs:             extraSpecs,
 		GitHubRunnerGroup:      pool.Spec.GitHubRunnerGroup,
+		EnableShell:            pool.Spec.EnableShell,
+		Priority:               pool.Spec.Priority,
+		TemplateID:             pool.Spec.TemplateID,
 	}
 
 	switch scope {
