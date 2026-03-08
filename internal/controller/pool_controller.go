@@ -386,7 +386,20 @@ func (r *PoolReconciler) comparePoolSpecs(ctx context.Context, pool *garmoperato
 		GitHubRunnerGroup:      pool.Spec.GitHubRunnerGroup,
 		ID:                     pool.Status.ID,
 		ProviderName:           pool.Spec.ProviderName,
+		EnableShell:            pool.Spec.EnableShell,
+		Priority:               pool.Spec.Priority,
 	}
+	if pool.Spec.TemplateID != nil {
+		tmpGarmPool.TemplateID = *pool.Spec.TemplateID
+	}
+
+	// Copy fields from garm that the operator does not manage
+	// so they don't cause false positives in DeepEqual comparison
+	tmpGarmPool.Generation = garmPool.Payload.Generation
+	tmpGarmPool.Endpoint = garmPool.Payload.Endpoint
+	tmpGarmPool.CreatedAt = garmPool.Payload.CreatedAt
+	tmpGarmPool.UpdatedAt = garmPool.Payload.UpdatedAt
+	tmpGarmPool.TemplateName = garmPool.Payload.TemplateName
 
 	switch gitHubScopeRef.GetKind() {
 	case string(garmoperatorv1beta1.EnterpriseScope):

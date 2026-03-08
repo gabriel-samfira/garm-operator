@@ -513,6 +513,8 @@ func TestPoolController_ReconcileCreate(t *testing.T) {
 				runnerBootstrapTimeout := uint(20)
 				extraSpecs := json.RawMessage([]byte{})
 				gitHubRunnerGroup := ""
+				enableShell := false
+				priority := uint(0)
 				poolClient.UpdatePool(pools.NewUpdatePoolParams().WithPoolID(poolID).WithBody(params.UpdatePoolParams{
 					RunnerPrefix: params.RunnerPrefix{
 						Prefix: "",
@@ -528,6 +530,8 @@ func TestPoolController_ReconcileCreate(t *testing.T) {
 					RunnerBootstrapTimeout: &runnerBootstrapTimeout,
 					ExtraSpecs:             extraSpecs,
 					GitHubRunnerGroup:      &gitHubRunnerGroup,
+					EnableShell:            &enableShell,
+					Priority:               &priority,
 				})).Return(&pools.UpdatePoolOK{Payload: params.Pool{
 					RunnerPrefix: params.RunnerPrefix{
 						Prefix: "",
@@ -885,6 +889,8 @@ func TestPoolController_ReconcileCreate(t *testing.T) {
 				runnerBootstrapTimeout := uint(20)
 				extraSpecs := json.RawMessage([]byte{})
 				gitHubRunnerGroup := ""
+				enableShell := false
+				priority := uint(0)
 				poolClient.UpdatePool(pools.NewUpdatePoolParams().WithPoolID(poolID).WithBody(params.UpdatePoolParams{
 					RunnerPrefix: params.RunnerPrefix{
 						Prefix: "",
@@ -900,6 +906,8 @@ func TestPoolController_ReconcileCreate(t *testing.T) {
 					RunnerBootstrapTimeout: &runnerBootstrapTimeout,
 					ExtraSpecs:             extraSpecs,
 					GitHubRunnerGroup:      &gitHubRunnerGroup,
+					EnableShell:            &enableShell,
+					Priority:               &priority,
 				})).Return(&pools.UpdatePoolOK{Payload: params.Pool{
 					RunnerPrefix: params.RunnerPrefix{
 						Prefix: "",
@@ -1549,6 +1557,8 @@ func TestPoolController_ReconcileDelete(t *testing.T) {
 				runnerBootstrapTimeout := uint(20)
 				extraSpecs := json.RawMessage([]byte{})
 				gitHubRunnerGroup := ""
+				enableShell := false
+				priority := uint(0)
 
 				instanceClient.ListPoolInstances(
 					instances.NewListPoolInstancesParams().
@@ -1574,6 +1584,8 @@ func TestPoolController_ReconcileDelete(t *testing.T) {
 						RunnerBootstrapTimeout: &runnerBootstrapTimeout,
 						ExtraSpecs:             extraSpecs,
 						GitHubRunnerGroup:      &gitHubRunnerGroup,
+						EnableShell:            &enableShell,
+						Priority:               &priority,
 					})).Return(&pools.UpdatePoolOK{
 					Payload: params.Pool{
 						RunnerPrefix: params.RunnerPrefix{
@@ -1776,6 +1788,8 @@ func TestPoolController_ReconcileDelete(t *testing.T) {
 					RunnerBootstrapTimeout: ptr.To(uint(20)),
 					ExtraSpecs:             json.RawMessage([]byte{}),
 					GitHubRunnerGroup:      ptr.To(""),
+					EnableShell:            ptr.To(false),
+					Priority:               ptr.To(uint(0)),
 				})).Return(&pools.UpdatePoolOK{Payload: params.Pool{
 					RunnerPrefix: params.RunnerPrefix{
 						Prefix: "",
