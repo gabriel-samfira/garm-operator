@@ -301,6 +301,8 @@ spec:
             type: object
           spec:
             properties:
+              enableShell:
+                type: boolean
               enabled:
                 type: boolean
               extraSpecs:
@@ -343,6 +345,8 @@ spec:
                 type: string
               osType:
                 type: string
+              priority:
+                type: integer
               providerName:
                 type: string
               runnerBootstrapTimeout:
@@ -353,6 +357,8 @@ spec:
                 items:
                   type: string
                 type: array
+              templateId:
+                type: integer
             required:
             - enabled
             - flavor

@@ -43,6 +43,15 @@ type PoolSpec struct {
 
 	// +optional
 	RunnerPrefix string `json:"runnerPrefix"`
+
+	// +optional
+	EnableShell bool `json:"enableShell,omitempty"`
+
+	// +optional
+	Priority uint `json:"priority,omitempty"`
+
+	// +optional
+	TemplateID *uint `json:"templateId,omitempty"`
 }
 
 // PoolStatus defines the observed state of Pool
