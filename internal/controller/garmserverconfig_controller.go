@@ -103,6 +103,9 @@ func (r *GarmServerConfigReconciler) reconcileNormal(ctx context.Context, contro
 	garmServerConfig.Status.CallbackURL = newControllerInfo.CallbackURL
 	garmServerConfig.Status.WebhookURL = newControllerInfo.WebhookURL
 	garmServerConfig.Status.ControllerWebhookURL = newControllerInfo.ControllerWebhookURL
+	garmServerConfig.Status.AgentURL = newControllerInfo.AgentURL
+	garmServerConfig.Status.GARMAgentReleasesURL = newControllerInfo.GARMAgentReleasesURL
+	garmServerConfig.Status.SyncGARMAgentTools = newControllerInfo.SyncGARMAgentTools
 	garmServerConfig.Status.MinimumJobAgeBackoff = newControllerInfo.MinimumJobAgeBackoff
 	garmServerConfig.Status.Version = newControllerInfo.Version
 
@@ -116,15 +119,21 @@ func (r *GarmServerConfigReconciler) updateControllerInfo(ctx context.Context, c
 
 	if garmServerConfigCR.Spec.MetadataURL == controllerInfo.MetadataURL &&
 		garmServerConfigCR.Spec.CallbackURL == controllerInfo.CallbackURL &&
-		garmServerConfigCR.Spec.WebhookURL == controllerInfo.WebhookURL {
+		garmServerConfigCR.Spec.WebhookURL == controllerInfo.WebhookURL &&
+		garmServerConfigCR.Spec.AgentURL == controllerInfo.AgentURL &&
+		garmServerConfigCR.Spec.GARMAgentReleasesURL == controllerInfo.GARMAgentReleasesURL &&
+		garmServerConfigCR.Spec.SyncGARMAgentTools == controllerInfo.SyncGARMAgentTools {
 		log.Info("Controller info is up to date")
 		return controllerInfo, nil
 	}
 
 	updateParams := garmcontroller.NewUpdateControllerParams().WithBody(params.UpdateControllerParams{
-		MetadataURL: util.StringPtr(garmServerConfigCR.Spec.MetadataURL),
-		CallbackURL: util.StringPtr(garmServerConfigCR.Spec.CallbackURL),
-		WebhookURL:  util.StringPtr(garmServerConfigCR.Spec.WebhookURL),
+		MetadataURL:          util.StringPtr(garmServerConfigCR.Spec.MetadataURL),
+		CallbackURL:          util.StringPtr(garmServerConfigCR.Spec.CallbackURL),
+		WebhookURL:           util.StringPtr(garmServerConfigCR.Spec.WebhookURL),
+		AgentURL:             util.StringPtr(garmServerConfigCR.Spec.AgentURL),
+		GARMAgentReleasesURL: util.StringPtr(garmServerConfigCR.Spec.GARMAgentReleasesURL),
+		SyncGARMAgentTools:   &garmServerConfigCR.Spec.SyncGARMAgentTools,
 	})
 
 	log.Info("Updating controller info in garm")

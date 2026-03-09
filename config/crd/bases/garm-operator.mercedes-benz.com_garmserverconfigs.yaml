@@ -74,16 +74,24 @@ spec:
           spec:
             description: GarmServerConfigSpec defines the desired state of GarmServerConfig
             properties:
+              agentUrl:
+                type: string
               callbackUrl:
+                type: string
+              garmAgentReleasesUrl:
                 type: string
               metadataUrl:
                 type: string
+              syncGarmAgentTools:
+                type: boolean
               webhookUrl:
                 type: string
             type: object
           status:
             description: GarmServerConfigStatus defines the observed state of GarmServerConfig
             properties:
+              agentUrl:
+                type: string
               callbackUrl:
                 type: string
               conditions:
@@ -146,12 +154,16 @@ spec:
                 type: string
               controllerWebhookUrl:
                 type: string
+              garmAgentReleasesUrl:
+                type: string
               hostname:
                 type: string
               metadataUrl:
                 type: string
               minimumJobAgeBackoff:
                 type: integer
+              syncGarmAgentTools:
+                type: boolean
               version:
                 type: string
               webhookUrl:
