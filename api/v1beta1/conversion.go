@@ -18,3 +18,9 @@ func (*Organization) Hub() {}
 
 // Hub marks this type as a conversion hub.
 func (*Repository) Hub() {}
+
+// Hub marks this type as a conversion hub.
+func (*GiteaEndpoint) Hub() {}
+
+// Hub marks this type as a conversion hub.
+func (*GiteaCredential) Hub() {}

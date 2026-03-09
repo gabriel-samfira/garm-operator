@@ -31,6 +31,8 @@ rules:
   resources:
   - enterprises
   - garmserverconfigs
+  - giteacredentials
+  - giteaendpoints
   - githubcredentials
   - githubendpoints
   - images
@@ -51,6 +53,8 @@ rules:
   resources:
   - enterprises/finalizers
   - garmserverconfigs/finalizers
+  - giteacredentials/finalizers
+  - giteaendpoints/finalizers
   - githubcredentials/finalizers
   - githubendpoints/finalizers
   - organizations/finalizers
@@ -63,6 +67,8 @@ rules:
   resources:
   - enterprises/status
   - garmserverconfigs/status
+  - giteacredentials/status
+  - giteaendpoints/status
   - githubcredentials/status
   - githubendpoints/status
   - organizations/status

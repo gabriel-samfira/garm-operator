@@ -53,6 +53,13 @@ const (
 	FetchingGithubEndpointRefFailedReason  ConditionReason = "FetchingGithubEndpointRefFailed"
 )
 
+// Gitea Credential Conditions
+const (
+	GiteaEndpointReference                ConditionType   = "GiteaEndpointReference"
+	FetchingGiteaEndpointRefSuccessReason ConditionReason = "FetchingGiteaEndpointRefSuccess"
+	FetchingGiteaEndpointRefFailedReason  ConditionReason = "FetchingGiteaEndpointRefFailed"
+)
+
 const (
 	GarmServerNotReconciledYetMsg     string = "GARM server not reconciled yet"
 	CredentialsNotReconciledYetMsg    string = "GithubCredentialsRef not reconciled yet" // #nosec G101
@@ -64,4 +71,7 @@ const (
 	DeletingPoolMsg                   string = "Deleting pool"
 	DeletingEndpointMsg               string = "Deleting endpoint"
 	DeletingCredentialsMsg            string = "Deleting credentials" // #nosec G101
+	GiteaEndpointNotReconciledYetMsg  string = "GiteaEndpointRef not reconciled yet"
+	DeletingGiteaEndpointMsg          string = "Deleting gitea endpoint"
+	DeletingGiteaCredentialsMsg       string = "Deleting gitea credentials" // #nosec G101
 )
