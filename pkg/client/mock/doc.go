@@ -24,3 +24,7 @@ package mock
 //go:generate /usr/bin/env bash -c "cat ../../../hack/boilerplate.go.txt credentials.go > _credentials.go && mv _credentials.go credentials.go"
 //go:generate ../../../bin/mockgen -package mock -destination=controller.go -source=../controller.go GarmServerConfig
 //go:generate /usr/bin/env bash -c "cat ../../../hack/boilerplate.go.txt controller.go > _controller.go && mv _controller.go controller.go"
+//go:generate ../../../bin/mockgen -package mock -destination=gitea_endpoint.go -source=../gitea_endpoint.go GiteaEndpointClient
+//go:generate /usr/bin/env bash -c "cat ../../../hack/boilerplate.go.txt gitea_endpoint.go > _gitea_endpoint.go && mv _gitea_endpoint.go gitea_endpoint.go"
+//go:generate ../../../bin/mockgen -package mock -destination=gitea_credentials.go -source=../gitea_credentials.go GiteaCredentialsClient
+//go:generate /usr/bin/env bash -c "cat ../../../hack/boilerplate.go.txt gitea_credentials.go > _gitea_credentials.go && mv _gitea_credentials.go gitea_credentials.go"

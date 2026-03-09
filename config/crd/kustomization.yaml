@@ -11,6 +11,8 @@ resources:
   - bases/garm-operator.mercedes-benz.com_garmserverconfigs.yaml
   - bases/garm-operator.mercedes-benz.com_githubendpoints.yaml
   - bases/garm-operator.mercedes-benz.com_githubcredentials.yaml
+  - bases/garm-operator.mercedes-benz.com_giteaendpoints.yaml
+  - bases/garm-operator.mercedes-benz.com_giteacredentials.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patches:
