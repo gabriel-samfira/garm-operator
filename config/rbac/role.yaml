@@ -41,6 +41,7 @@ rules:
   - repositories
   - runners
   - scalesets
+  - templates
   verbs:
   - create
   - delete
@@ -62,6 +63,7 @@ rules:
   - repositories/finalizers
   - runners/finalizers
   - scalesets/finalizers
+  - templates/finalizers
   verbs:
   - update
 - apiGroups:
@@ -78,6 +80,7 @@ rules:
   - repositories/status
   - runners/status
   - scalesets/status
+  - templates/status
   verbs:
   - get
   - patch
