@@ -24,3 +24,6 @@ func (*GiteaEndpoint) Hub() {}
 
 // Hub marks this type as a conversion hub.
 func (*GiteaCredential) Hub() {}
+
+// Hub marks this type as a conversion hub.
+func (*ScaleSet) Hub() {}
