@@ -262,6 +262,14 @@ func run() error {
 		return fmt.Errorf("unable to create controller ScaleSet: %w", err)
 	}
 
+	if err = (&garmcontroller.TemplateReconciler{
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor("template-controller"),
+	}).SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("unable to create controller Template: %w", err)
+	}
+
 	// webhooks
 	if err = (&garmoperatorv1beta1.Repository{}).SetupWebhookWithManager(mgr); err != nil {
 		return fmt.Errorf("unable to create webhook Repository: %w", err)

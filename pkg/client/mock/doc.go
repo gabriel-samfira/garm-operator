@@ -30,3 +30,5 @@ package mock
 //go:generate /usr/bin/env bash -c "cat ../../../hack/boilerplate.go.txt gitea_credentials.go > _gitea_credentials.go && mv _gitea_credentials.go gitea_credentials.go"
 //go:generate ../../../bin/mockgen -package mock -destination=scaleset.go -source=../scaleset.go ScaleSetClient
 //go:generate /usr/bin/env bash -c "cat ../../../hack/boilerplate.go.txt scaleset.go > _scaleset.go && mv _scaleset.go scaleset.go"
+//go:generate ../../../bin/mockgen -package mock -destination=template.go -source=../template.go TemplateClient
+//go:generate /usr/bin/env bash -c "cat ../../../hack/boilerplate.go.txt template.go > _template.go && mv _template.go template.go"
