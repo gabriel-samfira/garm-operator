@@ -126,6 +126,7 @@ func (r *OrganizationReconciler) reconcileNormal(ctx context.Context, client gar
 	}
 
 	// create organization on garm side if it does not exist
+	justCreated := false
 	if reflect.ValueOf(garmOrganization).IsZero() {
 		garmOrganization, err = r.createOrganization(ctx, client, organization, webhookSecret, forgeType)
 		if err != nil {
@@ -133,19 +134,22 @@ func (r *OrganizationReconciler) reconcileNormal(ctx context.Context, client gar
 			conditions.MarkFalse(organization, conditions.ReadyCondition, conditions.GarmAPIErrorReason, err.Error())
 			return ctrl.Result{}, err
 		}
+		justCreated = true
 	}
 
-	// update organization anytime
-	garmOrganization, err = r.updateOrganization(ctx, client, garmOrganization.ID, params.UpdateEntityParams{
-		CredentialsName:  credentialsName,
-		WebhookSecret:    webhookSecret,
-		PoolBalancerType: organization.Spec.PoolBalancerType,
-		AgentMode:        &organization.Spec.AgentMode,
-	})
-	if err != nil {
-		event.Error(r.Recorder, organization, err.Error())
-		conditions.MarkFalse(organization, conditions.ReadyCondition, conditions.GarmAPIErrorReason, err.Error())
-		return ctrl.Result{}, err
+	// update organization if it already existed (skip if just created since values are already correct)
+	if !justCreated {
+		garmOrganization, err = r.updateOrganization(ctx, client, garmOrganization.ID, params.UpdateEntityParams{
+			CredentialsName:  credentialsName,
+			WebhookSecret:    webhookSecret,
+			PoolBalancerType: organization.Spec.PoolBalancerType,
+			AgentMode:        &organization.Spec.AgentMode,
+		})
+		if err != nil {
+			event.Error(r.Recorder, organization, err.Error())
+			conditions.MarkFalse(organization, conditions.ReadyCondition, conditions.GarmAPIErrorReason, err.Error())
+			return ctrl.Result{}, err
+		}
 	}
 
 	// set and update organization status

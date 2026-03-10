@@ -126,6 +126,7 @@ func (r *RepositoryReconciler) reconcileNormal(ctx context.Context, client garmC
 	}
 
 	// create repository on garm side if it does not exist
+	justCreated := false
 	if reflect.ValueOf(garmRepository).IsZero() {
 		garmRepository, err = r.createRepository(ctx, client, repository, webhookSecret, forgeType)
 		if err != nil {
@@ -133,19 +134,22 @@ func (r *RepositoryReconciler) reconcileNormal(ctx context.Context, client garmC
 			conditions.MarkFalse(repository, conditions.ReadyCondition, conditions.GarmAPIErrorReason, err.Error())
 			return ctrl.Result{}, err
 		}
+		justCreated = true
 	}
 
-	// update repository anytime
-	garmRepository, err = r.updateRepository(ctx, client, garmRepository.ID, params.UpdateEntityParams{
-		CredentialsName:  credentialsName,
-		WebhookSecret:    webhookSecret,
-		PoolBalancerType: repository.Spec.PoolBalancerType,
-		AgentMode:        &repository.Spec.AgentMode,
-	})
-	if err != nil {
-		event.Error(r.Recorder, repository, err.Error())
-		conditions.MarkFalse(repository, conditions.ReadyCondition, conditions.GarmAPIErrorReason, err.Error())
-		return ctrl.Result{}, err
+	// update repository if it already existed (skip if just created since values are already correct)
+	if !justCreated {
+		garmRepository, err = r.updateRepository(ctx, client, garmRepository.ID, params.UpdateEntityParams{
+			CredentialsName:  credentialsName,
+			WebhookSecret:    webhookSecret,
+			PoolBalancerType: repository.Spec.PoolBalancerType,
+			AgentMode:        &repository.Spec.AgentMode,
+		})
+		if err != nil {
+			event.Error(r.Recorder, repository, err.Error())
+			conditions.MarkFalse(repository, conditions.ReadyCondition, conditions.GarmAPIErrorReason, err.Error())
+			return ctrl.Result{}, err
+		}
 	}
 
 	// set and update repository status
