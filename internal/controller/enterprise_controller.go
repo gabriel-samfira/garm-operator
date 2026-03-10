@@ -110,7 +110,7 @@ func (r *EnterpriseReconciler) reconcileNormal(ctx context.Context, client garmC
 	}
 	conditions.MarkTrue(enterprise, conditions.WebhookSecretReference, conditions.FetchingWebhookSecretRefSuccessReason, "")
 
-	credentials, err := r.getCredentialsRef(ctx, enterprise)
+	credentialsName, _, err := r.getCredentialsRef(ctx, enterprise)
 	if err != nil {
 		event.Error(r.Recorder, enterprise, err.Error())
 		conditions.MarkFalse(enterprise, conditions.ReadyCondition, conditions.FetchingGithubCredentialsRefFailedReason, err.Error())
@@ -138,7 +138,7 @@ func (r *EnterpriseReconciler) reconcileNormal(ctx context.Context, client garmC
 
 	// update enterprise anytime
 	garmEnterprise, err = r.updateEnterprise(ctx, client, garmEnterprise.ID, params.UpdateEntityParams{
-		CredentialsName:  credentials.Name,
+		CredentialsName:  credentialsName,
 		WebhookSecret:    webhookSecret,
 		PoolBalancerType: enterprise.Spec.PoolBalancerType,
 		AgentMode:        &enterprise.Spec.AgentMode,
@@ -175,7 +175,7 @@ func (r *EnterpriseReconciler) createEnterprise(ctx context.Context, client garm
 			WithBody(params.CreateEnterpriseParams{
 				Name:             enterprise.Name,
 				CredentialsName:  enterprise.GetCredentialsName(),
-				WebhookSecret:    webhookSecret, // gh hook secret
+				WebhookSecret:    webhookSecret,
 				PoolBalancerType: enterprise.Spec.PoolBalancerType,
 				AgentMode:        enterprise.Spec.AgentMode,
 			}))
@@ -263,16 +263,29 @@ func (r *EnterpriseReconciler) reconcileDelete(ctx context.Context, client garmC
 	return ctrl.Result{}, nil
 }
 
-func (r *EnterpriseReconciler) getCredentialsRef(ctx context.Context, enterprise *garmoperatorv1beta1.Enterprise) (*garmoperatorv1beta1.GitHubCredential, error) {
-	creds := &garmoperatorv1beta1.GitHubCredential{}
-	err := r.Get(ctx, types.NamespacedName{
+func (r *EnterpriseReconciler) getCredentialsRef(ctx context.Context, enterprise *garmoperatorv1beta1.Enterprise) (string, params.EndpointType, error) {
+	credRef := enterprise.Spec.CredentialsRef
+	namespacedName := types.NamespacedName{
 		Namespace: enterprise.Namespace,
-		Name:      enterprise.Spec.CredentialsRef.Name,
-	}, creds)
-	if err != nil {
-		return creds, err
+		Name:      credRef.Name,
 	}
-	return creds, nil
+
+	switch credRef.Kind {
+	case "GitHubCredential":
+		creds := &garmoperatorv1beta1.GitHubCredential{}
+		if err := r.Get(ctx, namespacedName, creds); err != nil {
+			return "", "", err
+		}
+		return creds.Name, params.GithubEndpointType, nil
+	case "GiteaCredential":
+		creds := &garmoperatorv1beta1.GiteaCredential{}
+		if err := r.Get(ctx, namespacedName, creds); err != nil {
+			return "", "", err
+		}
+		return creds.Name, params.GiteaEndpointType, nil
+	default:
+		return "", "", fmt.Errorf("unsupported credentials kind: %s (must be GitHubCredential or GiteaCredential)", credRef.Kind)
+	}
 }
 
 func (r *EnterpriseReconciler) findEnterprisesForCredentials(ctx context.Context, obj client.Object) []reconcile.Request {

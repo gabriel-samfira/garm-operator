@@ -124,12 +124,14 @@ func (r *GiteaEndpointReconciler) reconcileNormal(ctx context.Context, client ga
 		}
 	}
 
-	// update endpoint cr anytime the endpoint in garm db changes
-	garmEndpoint, err = r.updateEndpoint(ctx, client, endpoint, caCertBundleSecret)
-	if err != nil {
-		event.Error(r.Recorder, endpoint, err.Error())
-		conditions.MarkFalse(endpoint, conditions.ReadyCondition, conditions.GarmAPIErrorReason, err.Error())
-		return ctrl.Result{}, err
+	// update endpoint only if spec differs from garm state
+	if r.endpointNeedsUpdate(endpoint, garmEndpoint, caCertBundleSecret) {
+		garmEndpoint, err = r.updateEndpoint(ctx, client, endpoint, caCertBundleSecret)
+		if err != nil {
+			event.Error(r.Recorder, endpoint, err.Error())
+			conditions.MarkFalse(endpoint, conditions.ReadyCondition, conditions.GarmAPIErrorReason, err.Error())
+			return ctrl.Result{}, err
+		}
 	}
 
 	// set and update endpoint status
@@ -179,6 +181,15 @@ func (r *GiteaEndpointReconciler) createEndpoint(ctx context.Context, client gar
 	event.Info(r.Recorder, endpoint, "creating endpoint in garm succeeded")
 
 	return retValue.Payload, nil
+}
+
+func (r *GiteaEndpointReconciler) endpointNeedsUpdate(endpoint *garmoperatorv1beta1.GiteaEndpoint, garmEndpoint params.ForgeEndpoint, caCertBundleSecret string) bool {
+	return endpoint.Spec.Description != garmEndpoint.Description ||
+		endpoint.Spec.APIBaseURL != garmEndpoint.APIBaseURL ||
+		endpoint.Spec.BaseURL != garmEndpoint.BaseURL ||
+		caCertBundleSecret != string(garmEndpoint.CACertBundle) ||
+		endpoint.Spec.ToolsMetadataURL != garmEndpoint.ToolsMetadataURL ||
+		endpoint.Spec.UseInternalToolsMetadata != garmEndpoint.UseInternalToolsMetadata
 }
 
 func (r *GiteaEndpointReconciler) updateEndpoint(ctx context.Context, client garmClient.GiteaEndpointClient, endpoint *garmoperatorv1beta1.GiteaEndpoint, caCertBundleSecret string) (params.ForgeEndpoint, error) {
