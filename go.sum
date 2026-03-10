@@ -6,8 +6,8 @@ github.com/bradleyfalzon/ghinstallation/v2 v2.17.0 h1:SmbUK/GxpAspRjSQbB6ARvH+Ar
 github.com/bradleyfalzon/ghinstallation/v2 v2.17.0/go.mod h1:vuD/xvJT9Y+ZVZRv4HQ42cMyPFIYqpc7AbB4Gvt/DlY=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
 github.com/cespare/xxhash/v2 v2.3.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
-github.com/cloudbase/garm v0.2.0-alpha.0.20260309082206-6b8c3955eff0 h1:TnMvo9XCtJbALtxDWpGDtTFrj5BmIuWr8/T38AvUL5M=
-github.com/cloudbase/garm v0.2.0-alpha.0.20260309082206-6b8c3955eff0/go.mod h1:MITPHLs6HX07gKH9qUVwphaKoBKDQbxCqGD6L+rucrQ=
+github.com/cloudbase/garm v0.2.0-alpha.0.20260310220754-2eb8cb5bd736 h1:4WIQRIiVBIGe4pTiWn3+wuByzkYJan7ok40FN5EQss0=
+github.com/cloudbase/garm v0.2.0-alpha.0.20260310220754-2eb8cb5bd736/go.mod h1:MITPHLs6HX07gKH9qUVwphaKoBKDQbxCqGD6L+rucrQ=
 github.com/cloudbase/garm-provider-common v0.1.8-0.20260304133539-3e3d10fe78b8 h1:7o1j/92OhoeREH9FHpfaGY5D8voPTHilaUqpfWDpvyQ=
 github.com/cloudbase/garm-provider-common v0.1.8-0.20260304133539-3e3d10fe78b8/go.mod h1:2O51WbcfqRx5fDHyyJgIFq7KdTZZnefsM+aoOchyleU=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

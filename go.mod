@@ -4,7 +4,7 @@ module github.com/mercedes-benz/garm-operator
 go 1.25.5
 
 require (
-	github.com/cloudbase/garm v0.2.0-alpha.0.20260309082206-6b8c3955eff0
+	github.com/cloudbase/garm v0.2.0-alpha.0.20260310220754-2eb8cb5bd736
 	github.com/cloudbase/garm-provider-common v0.1.8-0.20260304133539-3e3d10fe78b8
 	github.com/go-openapi/runtime v0.29.3
 	github.com/go-playground/validator/v10 v10.28.0
