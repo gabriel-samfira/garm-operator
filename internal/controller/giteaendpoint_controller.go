@@ -193,12 +193,33 @@ func (r *GiteaEndpointReconciler) createEndpoint(ctx context.Context, client gar
 }
 
 func (r *GiteaEndpointReconciler) endpointNeedsUpdate(endpoint *garmoperatorv1beta1.GiteaEndpoint, garmEndpoint params.ForgeEndpoint, caCertBundleSecret string) bool {
-	return endpoint.Spec.Description != garmEndpoint.Description ||
-		endpoint.Spec.APIBaseURL != garmEndpoint.APIBaseURL ||
-		endpoint.Spec.BaseURL != garmEndpoint.BaseURL ||
-		caCertBundleSecret != string(garmEndpoint.CACertBundle) ||
-		endpoint.Spec.ToolsMetadataURL != garmEndpoint.ToolsMetadataURL ||
-		endpoint.Spec.UseInternalToolsMetadata != garmEndpoint.UseInternalToolsMetadata
+	descDiff := endpoint.Spec.Description != garmEndpoint.Description
+	apiDiff := endpoint.Spec.APIBaseURL != garmEndpoint.APIBaseURL
+	baseDiff := endpoint.Spec.BaseURL != garmEndpoint.BaseURL
+	caDiff := caCertBundleSecret != string(garmEndpoint.CACertBundle)
+	toolsDiff := endpoint.Spec.ToolsMetadataURL != garmEndpoint.ToolsMetadataURL
+	internalDiff := endpoint.Spec.UseInternalToolsMetadata != garmEndpoint.UseInternalToolsMetadata
+
+	needsUpdate := descDiff || apiDiff || baseDiff || caDiff || toolsDiff || internalDiff
+
+	if needsUpdate {
+		log := ctrl.Log.WithName("endpointNeedsUpdate")
+		log.Info("Endpoint needs update",
+			"endpoint", endpoint.Name,
+			"descDiff", descDiff,
+			"apiDiff", apiDiff,
+			"baseDiff", baseDiff,
+			"caDiff", caDiff,
+			"toolsDiff", toolsDiff,
+			"internalDiff", internalDiff,
+			"spec.APIBaseURL", endpoint.Spec.APIBaseURL,
+			"garm.APIBaseURL", garmEndpoint.APIBaseURL,
+			"spec.BaseURL", endpoint.Spec.BaseURL,
+			"garm.BaseURL", garmEndpoint.BaseURL,
+		)
+	}
+
+	return needsUpdate
 }
 
 func (r *GiteaEndpointReconciler) updateEndpoint(ctx context.Context, client garmClient.GiteaEndpointClient, endpoint *garmoperatorv1beta1.GiteaEndpoint, caCertBundleSecret string) (params.ForgeEndpoint, error) {

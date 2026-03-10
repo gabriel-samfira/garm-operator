@@ -192,11 +192,31 @@ func (r *GitHubEndpointReconciler) createEndpoint(ctx context.Context, client ga
 }
 
 func (r *GitHubEndpointReconciler) endpointNeedsUpdate(endpoint *garmoperatorv1beta1.GitHubEndpoint, garmEndpoint params.ForgeEndpoint, caCertBundleSecret string) bool {
-	return endpoint.Spec.Description != garmEndpoint.Description ||
-		endpoint.Spec.APIBaseURL != garmEndpoint.APIBaseURL ||
-		endpoint.Spec.UploadBaseURL != garmEndpoint.UploadBaseURL ||
-		endpoint.Spec.BaseURL != garmEndpoint.BaseURL ||
-		caCertBundleSecret != string(garmEndpoint.CACertBundle)
+	descDiff := endpoint.Spec.Description != garmEndpoint.Description
+	apiDiff := endpoint.Spec.APIBaseURL != garmEndpoint.APIBaseURL
+	uploadDiff := endpoint.Spec.UploadBaseURL != garmEndpoint.UploadBaseURL
+	baseDiff := endpoint.Spec.BaseURL != garmEndpoint.BaseURL
+	caDiff := caCertBundleSecret != string(garmEndpoint.CACertBundle)
+
+	needsUpdate := descDiff || apiDiff || uploadDiff || baseDiff || caDiff
+
+	if needsUpdate {
+		log := ctrl.Log.WithName("endpointNeedsUpdate")
+		log.Info("Endpoint needs update",
+			"endpoint", endpoint.Name,
+			"descDiff", descDiff,
+			"apiDiff", apiDiff,
+			"uploadDiff", uploadDiff,
+			"baseDiff", baseDiff,
+			"caDiff", caDiff,
+			"spec.APIBaseURL", endpoint.Spec.APIBaseURL,
+			"garm.APIBaseURL", garmEndpoint.APIBaseURL,
+			"spec.BaseURL", endpoint.Spec.BaseURL,
+			"garm.BaseURL", garmEndpoint.BaseURL,
+		)
+	}
+
+	return needsUpdate
 }
 
 func (r *GitHubEndpointReconciler) updateEndpoint(ctx context.Context, client garmClient.EndpointClient, endpoint *garmoperatorv1beta1.GitHubEndpoint, caCertBundleSecret string) (params.ForgeEndpoint, error) {
