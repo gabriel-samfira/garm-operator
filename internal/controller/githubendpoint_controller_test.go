@@ -416,7 +416,7 @@ func TestGitHubEndpointReconciler_reconcileNormal(t *testing.T) {
 						CACertBundle:  []byte(""),
 					})).Return(nil, endpoints.NewUpdateGithubEndpointDefault(400))
 			},
-			wantErr: true,
+			wantErr: false, // 400 errors now return nil error with backoff
 		},
 		{
 			name: "github-endpoint update - no ca cert bundle secret found",
