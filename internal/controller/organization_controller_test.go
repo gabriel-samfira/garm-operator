@@ -543,6 +543,7 @@ func TestOrganizationReconciler_reconcileNormal(t *testing.T) {
 						Name:            "new-organization",
 						CredentialsName: "github-creds",
 						WebhookSecret:   "foobar",
+						ForgeType:       params.GithubEndpointType,
 					})).Return(&organizations.CreateOrgOK{
 					Payload: params.Organization{
 						Name:            "new-organization",
@@ -805,6 +806,7 @@ func TestOrganizationReconciler_reconcileNormal(t *testing.T) {
 						Name:            "existing-organization",
 						CredentialsName: "github-creds",
 						WebhookSecret:   "foobar",
+						ForgeType:       params.GithubEndpointType,
 					})).Return(&organizations.CreateOrgOK{
 					Payload: params.Organization{
 						Name:            "existing-organization",

@@ -559,6 +559,7 @@ func TestRepositoryReconciler_reconcileNormal(t *testing.T) {
 						CredentialsName: "github-creds",
 						WebhookSecret:   "foobar",
 						Owner:           "test-repo",
+						ForgeType:       params.GithubEndpointType,
 					})).Return(&repositories.CreateRepoOK{
 					Payload: params.Repository{
 						Name:            "new-repository",
@@ -830,6 +831,7 @@ func TestRepositoryReconciler_reconcileNormal(t *testing.T) {
 						CredentialsName: "github-creds",
 						WebhookSecret:   "foobar",
 						Owner:           "test-repo",
+						ForgeType:       params.GithubEndpointType,
 					})).Return(&repositories.CreateRepoOK{
 					Payload: params.Repository{
 						Name:            "existing-repository",
