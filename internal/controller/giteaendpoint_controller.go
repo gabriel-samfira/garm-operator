@@ -216,6 +216,10 @@ func (r *GiteaEndpointReconciler) endpointNeedsUpdate(endpoint *garmoperatorv1be
 			"garm.APIBaseURL", garmEndpoint.APIBaseURL,
 			"spec.BaseURL", endpoint.Spec.BaseURL,
 			"garm.BaseURL", garmEndpoint.BaseURL,
+			"spec.ToolsMetadataURL", endpoint.Spec.ToolsMetadataURL,
+			"garm.ToolsMetadataURL", garmEndpoint.ToolsMetadataURL,
+			"spec.UseInternalToolsMetadata", endpoint.Spec.UseInternalToolsMetadata,
+			"garm.UseInternalToolsMetadata", garmEndpoint.UseInternalToolsMetadata,
 		)
 	}
 
