@@ -221,6 +221,14 @@ func IsConflictError(err interface{}) bool {
 	return apiErr.IsCode(http.StatusConflict)
 }
 
+func IsBadRequestError(err interface{}) bool {
+	apiErr, ok := err.(runtime.ClientResponseStatus)
+	if !ok {
+		return false
+	}
+	return apiErr.IsCode(http.StatusBadRequest)
+}
+
 type Func[T interface{}] func() (T, error)
 
 func EnsureAuth[T interface{}](f Func[T]) (T, error) {

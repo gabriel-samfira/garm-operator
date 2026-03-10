@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"time"
 
 	garmcredentials "github.com/cloudbase/garm/client/credentials"
 	"github.com/cloudbase/garm/params"
@@ -252,11 +253,17 @@ func (r *GiteaCredentialReconciler) reconcileDelete(ctx context.Context, client 
 			WithID(credentials.Status.ID),
 	); err != nil {
 		log.V(1).Info(fmt.Sprintf("client.DeleteGiteaCredentials error: %s", err))
+
+		// If it's a 400 error (validation error like "credentials still in use"),
+		// use explicit backoff to avoid spamming GARM
+		if garmClient.IsBadRequestError(err) {
+			event.Error(r.Recorder, credentials, "Cannot delete credentials - likely still in use by repositories or organizations")
+			conditions.MarkFalse(credentials, conditions.ReadyCondition, conditions.GarmAPIErrorReason, err.Error())
+			return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+		}
+
 		event.Error(r.Recorder, credentials, err.Error())
 		conditions.MarkFalse(credentials, conditions.ReadyCondition, conditions.GarmAPIErrorReason, err.Error())
-		if err := r.Status().Update(ctx, credentials); err != nil {
-			return ctrl.Result{}, err
-		}
 		return ctrl.Result{}, err
 	}
 

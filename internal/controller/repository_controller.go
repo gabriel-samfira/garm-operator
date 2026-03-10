@@ -299,7 +299,7 @@ func (r *RepositoryReconciler) getCredentialsRef(ctx context.Context, repository
 	}
 }
 
-func (r *RepositoryReconciler) findReposForCredentials(ctx context.Context, obj client.Object) []reconcile.Request {
+func (r *RepositoryReconciler) findReposForGitHubCredentials(ctx context.Context, obj client.Object) []reconcile.Request {
 	credentials, ok := obj.(*garmoperatorv1beta1.GitHubCredential)
 	if !ok {
 		return nil
@@ -312,7 +312,33 @@ func (r *RepositoryReconciler) findReposForCredentials(ctx context.Context, obj 
 
 	var requests []reconcile.Request
 	for _, repo := range repos.Items {
-		if repo.GetCredentialsName() == credentials.Name {
+		if repo.Spec.CredentialsRef.Name == credentials.Name && repo.Spec.CredentialsRef.Kind == "GitHubCredential" {
+			requests = append(requests, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Namespace: repo.Namespace,
+					Name:      repo.Name,
+				},
+			})
+		}
+	}
+
+	return requests
+}
+
+func (r *RepositoryReconciler) findReposForGiteaCredentials(ctx context.Context, obj client.Object) []reconcile.Request {
+	credentials, ok := obj.(*garmoperatorv1beta1.GiteaCredential)
+	if !ok {
+		return nil
+	}
+
+	var repos garmoperatorv1beta1.RepositoryList
+	if err := r.List(ctx, &repos); err != nil {
+		return nil
+	}
+
+	var requests []reconcile.Request
+	for _, repo := range repos.Items {
+		if repo.Spec.CredentialsRef.Name == credentials.Name && repo.Spec.CredentialsRef.Kind == "GiteaCredential" {
 			requests = append(requests, reconcile.Request{
 				NamespacedName: types.NamespacedName{
 					Namespace: repo.Namespace,
@@ -331,7 +357,12 @@ func (r *RepositoryReconciler) SetupWithManager(mgr ctrl.Manager, options contro
 		For(&garmoperatorv1beta1.Repository{}).
 		Watches(
 			&garmoperatorv1beta1.GitHubCredential{},
-			handler.EnqueueRequestsFromMapFunc(r.findReposForCredentials),
+			handler.EnqueueRequestsFromMapFunc(r.findReposForGitHubCredentials),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
+		Watches(
+			&garmoperatorv1beta1.GiteaCredential{},
+			handler.EnqueueRequestsFromMapFunc(r.findReposForGiteaCredentials),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
 		WithOptions(options).
