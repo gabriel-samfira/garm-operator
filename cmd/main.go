@@ -26,6 +26,7 @@ import (
 	garmcontroller "github.com/mercedes-benz/garm-operator/internal/controller"
 	"github.com/mercedes-benz/garm-operator/pkg/client"
 	"github.com/mercedes-benz/garm-operator/pkg/config"
+	"github.com/mercedes-benz/garm-operator/pkg/events"
 	"github.com/mercedes-benz/garm-operator/pkg/flags"
 	"github.com/mercedes-benz/garm-operator/pkg/version"
 )
@@ -193,10 +194,12 @@ func run() error {
 	}
 
 	if config.Config.Operator.RunnerReconciliation {
+		reconcileChan := make(chan event.GenericEvent, 100)
+
 		runnerReconciler := &garmcontroller.RunnerReconciler{
 			Client:        mgr.GetClient(),
 			Scheme:        mgr.GetScheme(),
-			ReconcileChan: make(chan event.GenericEvent),
+			ReconcileChan: reconcileChan,
 		}
 
 		// setup controller so it can reconcile if events from runnerEvents are queued
@@ -208,10 +211,15 @@ func run() error {
 			return fmt.Errorf("unable to create controller Runner: %w", err)
 		}
 
-		// fetch runner instances periodically and enqueue reconcile events for runner ctrl if external system has changed
 		ctx, cancel := context.WithCancel(ctx)
-		go runnerReconciler.PollRunnerInstances(ctx)
 		defer cancel()
+
+		// start websocket watcher for real-time instance events
+		watcher := events.NewWatcher(client.Client, config.Config.Operator.WatchNamespace, reconcileChan)
+		watcher.Start(ctx)
+
+		// keep polling as a fallback to catch any events missed during websocket reconnections
+		go runnerReconciler.PollRunnerInstances(ctx)
 	}
 
 	if err = (&garmcontroller.GarmServerConfigReconciler{
