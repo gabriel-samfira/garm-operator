@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -219,7 +220,10 @@ func run() error {
 		watcher.Start(ctx)
 
 		// keep polling as a fallback to catch any events missed during websocket reconnections
-		go runnerReconciler.PollRunnerInstances(ctx)
+		// use 5 minute interval (much longer than the websocket) as a safety net
+		fallbackPollInterval := 5 * time.Minute
+		setupLog.Info("Starting runner instance polling as fallback", "interval", fallbackPollInterval)
+		go runnerReconciler.PollRunnerInstances(ctx, fallbackPollInterval)
 	}
 
 	if err = (&garmcontroller.GarmServerConfigReconciler{
