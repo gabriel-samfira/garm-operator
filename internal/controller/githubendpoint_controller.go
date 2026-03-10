@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"time"
 
 	"github.com/cloudbase/garm/client/endpoints"
 	"github.com/cloudbase/garm/params"
@@ -128,6 +129,14 @@ func (r *GitHubEndpointReconciler) reconcileNormal(ctx context.Context, client g
 	if r.endpointNeedsUpdate(endpoint, garmEndpoint, caCertBundleSecret) {
 		garmEndpoint, err = r.updateEndpoint(ctx, client, endpoint, caCertBundleSecret)
 		if err != nil {
+			// If it's a 400 error (validation error like "cannot update endpoint URLs with existing credentials"),
+			// use explicit backoff to avoid spamming GARM
+			if garmClient.IsBadRequestError(err) {
+				event.Error(r.Recorder, endpoint, "Cannot update endpoint - likely credentials still attached")
+				conditions.MarkFalse(endpoint, conditions.ReadyCondition, conditions.GarmAPIErrorReason, err.Error())
+				return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+			}
+
 			event.Error(r.Recorder, endpoint, err.Error())
 			conditions.MarkFalse(endpoint, conditions.ReadyCondition, conditions.GarmAPIErrorReason, err.Error())
 			return ctrl.Result{}, err
