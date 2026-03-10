@@ -34,6 +34,7 @@ FROM busybox:stable
 WORKDIR /
 COPY --from=builder /workspace/manager .
 COPY --from=builder /go/bin/dlv .
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
 USER 65532:65532
 

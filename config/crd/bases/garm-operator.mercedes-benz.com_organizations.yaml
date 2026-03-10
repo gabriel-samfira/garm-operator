@@ -200,6 +200,11 @@ spec:
           spec:
             description: OrganizationSpec defines the desired state of Organization
             properties:
+              agentMode:
+                description: |-
+                  AgentMode enables GARM agent mode for runners in this organization.
+                  When enabled, pools under this entity can use enableShell to allow shell access on runners.
+                type: boolean
               credentialsRef:
                 description: |-
                   TypedLocalObjectReference contains enough information to let you locate the

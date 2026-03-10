@@ -18,6 +18,7 @@ This guide walks through building the garm-operator, deploying it to a Kubernete
   - [Create Gitea Credentials](#create-gitea-credentials)
   - [Add a Gitea Repository](#add-a-gitea-repository)
 - [Create a Pool](#create-a-pool)
+- [Create a Scale Set](#create-a-scale-set)
 - [Scale Runners](#scale-runners)
 <!-- /toc -->
 
@@ -57,23 +58,33 @@ make install
 make deploy IMG=your-registry.com/garm-operator:latest
 ```
 
-The operator needs connection details for your GARM server. Edit the manager deployment to set the required arguments:
+The deployment template includes environment variables with empty defaults for GARM connection details. After deploying, configure the operator with your GARM server credentials:
 
 ```bash
-kubectl -n garm-operator-system edit deployment garm-operator-controller-manager
+kubectl -n garm-operator-system set env deployment/garm-operator-controller-manager \
+  GARM_SERVER=https://garm.example.com \
+  GARM_USERNAME=admin \
+  GARM_PASSWORD=your-password
 ```
 
-Set these arguments on the manager container:
+The following environment variables are pre-configured in the deployment template:
 
-```yaml
-args:
-  - --garm-server=http://garm-server.garm-server.svc:9997
-  - --garm-username=admin
-  - --garm-password=your-password
-  - --operator-watch-namespace=garm-operator-system
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `GARM_SERVER` | (empty, required) | URL of your GARM server |
+| `GARM_USERNAME` | (empty, required) | GARM admin username |
+| `GARM_PASSWORD` | (empty, required) | GARM admin password |
+| `OPERATOR_WATCH_NAMESPACE` | (auto-detected) | Namespace to watch, defaults to the deployment's own namespace |
+| `OPERATOR_RUNNER_RECONCILIATION` | `true` | Sync runner state from GARM into Kubernetes Runner CRs |
+
+To disable runner reconciliation:
+
+```bash
+kubectl -n garm-operator-system set env deployment/garm-operator-controller-manager \
+  OPERATOR_RUNNER_RECONCILIATION=false
 ```
 
-Alternatively, use environment variables (`GARM_SERVER`, `GARM_USERNAME`, `GARM_PASSWORD`, `OPERATOR_WATCH_NAMESPACE`) or a config file. See the [configuration parsing guide](config/configuration-parsing.md) for all options.
+Alternatively, use CLI flags or a config file. See the [configuration parsing guide](config/configuration-parsing.md) for all options.
 
 Verify the operator is running:
 
@@ -95,6 +106,12 @@ spec:
   callbackUrl: http://garm-server.garm-server.svc:9997/api/v1/callbacks
   metadataUrl: http://garm-server.garm-server.svc:9997/api/v1/metadata
   webhookUrl: http://garm-server.garm-server.svc:9997/webhook
+  # Optional: required when using agent mode on runners
+  agentUrl: http://garm-server.garm-server.svc:9997/api/v1/agent
+  # Optional: URL to fetch GARM agent tool releases from
+  # garmAgentReleasesUrl: "https://github.com/cloudbase/garm/releases"
+  # Optional: automatically sync GARM agent tools
+  # syncGarmAgentTools: true
 ```
 
 Verify it was reconciled:
@@ -162,7 +179,29 @@ spec:
     key: token
 ```
 
-For GitHub App authentication, use `authType: app` and provide the app private key, app ID, and installation ID:
+For GitHub App authentication, create a secret with the app's private key PEM file, then use `authType: app`:
+
+```bash
+kubectl -n garm-operator-system create secret generic github-app-key \
+  --from-file=privateKey=/path/to/your-app.private-key.pem
+```
+
+Or with a manifest:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: github-app-key
+  namespace: garm-operator-system
+stringData:
+  privateKey: |
+    -----BEGIN RSA PRIVATE KEY-----
+    ...your private key content...
+    -----END RSA PRIVATE KEY-----
+```
+
+Then reference it in the `GitHubCredential`:
 
 ```yaml
 spec:
@@ -207,9 +246,13 @@ spec:
   webhookSecretRef:
     name: repo-webhook-secret
     key: webhookSecret
+  # Optional: enable agent mode for runners in this repository
+  # agentMode: true
 ```
 
 The `name` field (`my-repo`) must match the repository name on GitHub. The `owner` field is the GitHub user or organization that owns the repository.
+
+The optional `agentMode` field enables GARM agent mode for runners scoped to this entity. When agent mode is enabled, pools under this entity can use `enableShell` to allow shell access on runners. Agent mode can also be set on `Organization` and `Enterprise` CRDs.
 
 ## Gitea Setup
 
@@ -307,9 +350,11 @@ spec:
   webhookSecretRef:
     name: gitea-repo-webhook-secret
     key: webhookSecret
+  # Optional: enable agent mode for runners in this repository
+  # agentMode: true
 ```
 
-You can also use `Organization` or `Enterprise` CRDs with Gitea credentials in the same way.
+You can also use `Organization` or `Enterprise` CRDs with Gitea credentials in the same way. All entity types support the optional `agentMode` field.
 
 ## Create a Pool
 
@@ -343,11 +388,15 @@ spec:
   maxRunners: 4
   enabled: true
   runnerBootstrapTimeout: 20
+  # Optional: allow shell access on runners (requires agentMode on the parent entity)
+  # enableShell: true
   tags:
     - linux
     - ubuntu
     - small
 ```
+
+The optional `enableShell` field allows shell access on runners in this pool. It only takes effect when `agentMode: true` is set on the parent entity (Repository, Organization, or Enterprise). Without agent mode enabled on the parent, the setting is accepted but has no effect.
 
 This works identically for Gitea-backed repositories. The `githubScopeRef` points to the same `Repository` CR regardless of whether it uses GitHub or Gitea credentials.
 
@@ -355,6 +404,46 @@ Verify the pool was created:
 
 ```bash
 kubectl -n garm-operator-system get pool
+```
+
+## Create a Scale Set
+
+Scale Sets are an alternative to Pools for managing runners. They follow the same scoping model (Repository, Organization, or Enterprise) but use GitHub's Actions Runner Scale Set feature for more efficient runner lifecycle management.
+
+```yaml
+apiVersion: garm-operator.mercedes-benz.com/v1beta1
+kind: ScaleSet
+metadata:
+  name: my-scaleset
+  namespace: garm-operator-system
+spec:
+  githubScopeRef:
+    apiGroup: garm-operator.mercedes-benz.com
+    kind: Repository        # or Organization, Enterprise
+    name: my-repo           # name of the Repository/Organization/Enterprise CR
+  name: my-scaleset
+  providerName: openstack   # must match a provider configured in your GARM server
+  imageName: ubuntu-2204    # references the Image CR name
+  flavor: small
+  osType: linux
+  osArch: amd64
+  minIdleRunners: 2
+  maxRunners: 4
+  enabled: true
+  runnerBootstrapTimeout: 20
+  # Optional fields:
+  # enableShell: true         # requires agentMode on the parent entity
+  # runnerPrefix: "my-prefix"
+  # githubRunnerGroup: ""
+  # disableUpdate: false
+```
+
+Like Pools, Scale Sets reference a `githubScopeRef` to define which entity (Repository, Organization, or Enterprise) the runners belong to. The `imageName` must reference an existing `Image` CR.
+
+Verify the scale set was created:
+
+```bash
+kubectl -n garm-operator-system get scaleset
 ```
 
 ## Scale Runners

@@ -124,12 +124,14 @@ func (r *GitHubEndpointReconciler) reconcileNormal(ctx context.Context, client g
 		}
 	}
 
-	// update endpoint cr anytime the endpoint in garm db changes
-	garmEndpoint, err = r.updateEndpoint(ctx, client, endpoint, caCertBundleSecret)
-	if err != nil {
-		event.Error(r.Recorder, endpoint, err.Error())
-		conditions.MarkFalse(endpoint, conditions.ReadyCondition, conditions.GarmAPIErrorReason, err.Error())
-		return ctrl.Result{}, err
+	// update endpoint if spec differs from garm state
+	if r.endpointNeedsUpdate(endpoint, garmEndpoint, caCertBundleSecret) {
+		garmEndpoint, err = r.updateEndpoint(ctx, client, endpoint, caCertBundleSecret)
+		if err != nil {
+			event.Error(r.Recorder, endpoint, err.Error())
+			conditions.MarkFalse(endpoint, conditions.ReadyCondition, conditions.GarmAPIErrorReason, err.Error())
+			return ctrl.Result{}, err
+		}
 	}
 
 	// set and update endpoint status
@@ -178,6 +180,14 @@ func (r *GitHubEndpointReconciler) createEndpoint(ctx context.Context, client ga
 	event.Info(r.Recorder, endpoint, "creating endpoint in garm succeeded")
 
 	return retValue.Payload, nil
+}
+
+func (r *GitHubEndpointReconciler) endpointNeedsUpdate(endpoint *garmoperatorv1beta1.GitHubEndpoint, garmEndpoint params.ForgeEndpoint, caCertBundleSecret string) bool {
+	return endpoint.Spec.Description != garmEndpoint.Description ||
+		endpoint.Spec.APIBaseURL != garmEndpoint.APIBaseURL ||
+		endpoint.Spec.UploadBaseURL != garmEndpoint.UploadBaseURL ||
+		endpoint.Spec.BaseURL != garmEndpoint.BaseURL ||
+		caCertBundleSecret != string(garmEndpoint.CACertBundle)
 }
 
 func (r *GitHubEndpointReconciler) updateEndpoint(ctx context.Context, client garmClient.EndpointClient, endpoint *garmoperatorv1beta1.GitHubEndpoint, caCertBundleSecret string) (params.ForgeEndpoint, error) {

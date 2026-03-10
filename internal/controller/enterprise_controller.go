@@ -141,6 +141,7 @@ func (r *EnterpriseReconciler) reconcileNormal(ctx context.Context, client garmC
 		CredentialsName:  credentials.Name,
 		WebhookSecret:    webhookSecret,
 		PoolBalancerType: enterprise.Spec.PoolBalancerType,
+		AgentMode:        &enterprise.Spec.AgentMode,
 	})
 	if err != nil {
 		event.Error(r.Recorder, enterprise, err.Error())
@@ -176,6 +177,7 @@ func (r *EnterpriseReconciler) createEnterprise(ctx context.Context, client garm
 				CredentialsName:  enterprise.GetCredentialsName(),
 				WebhookSecret:    webhookSecret, // gh hook secret
 				PoolBalancerType: enterprise.Spec.PoolBalancerType,
+				AgentMode:        enterprise.Spec.AgentMode,
 			}))
 	if err != nil {
 		log.V(1).Info(fmt.Sprintf("client.CreateEnterprise error: %s", err))
