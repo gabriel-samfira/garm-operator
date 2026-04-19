@@ -41,6 +41,20 @@ func (m *MockGarmClient) EXPECT() *MockGarmClientMockRecorder {
 	return m.recorder
 }
 
+// BaseURL mocks base method.
+func (m *MockGarmClient) BaseURL() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BaseURL")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// BaseURL indicates an expected call of BaseURL.
+func (mr *MockGarmClientMockRecorder) BaseURL() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BaseURL", reflect.TypeOf((*MockGarmClient)(nil).BaseURL))
+}
+
 // GarmAPI mocks base method.
 func (m *MockGarmClient) GarmAPI() *client.GarmAPI {
 	m.ctrl.T.Helper()
@@ -81,6 +95,20 @@ func (m *MockGarmClient) Login() error {
 func (mr *MockGarmClientMockRecorder) Login() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Login", reflect.TypeOf((*MockGarmClient)(nil).Login))
+}
+
+// RawToken mocks base method.
+func (m *MockGarmClient) RawToken() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RawToken")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// RawToken indicates an expected call of RawToken.
+func (mr *MockGarmClientMockRecorder) RawToken() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RawToken", reflect.TypeOf((*MockGarmClient)(nil).RawToken))
 }
 
 // Token mocks base method.

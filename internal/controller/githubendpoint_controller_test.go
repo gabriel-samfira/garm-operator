@@ -351,24 +351,6 @@ func TestGitHubEndpointReconciler_reconcileNormal(t *testing.T) {
 						CACertBundle:  []byte("foobar"),
 					},
 				}, nil)
-				m.UpdateEndpoint(endpoints.NewUpdateGithubEndpointParams().
-					WithName("new-github-endpoint").
-					WithBody(params.UpdateGithubEndpointParams{
-						Description:   util.StringPtr("new github endpoint"),
-						APIBaseURL:    util.StringPtr("https://api.github.com"),
-						UploadBaseURL: util.StringPtr("https://uploads.github.com"),
-						BaseURL:       util.StringPtr("https://github.com"),
-						CACertBundle:  []byte("foobar"),
-					})).Return(&endpoints.UpdateGithubEndpointOK{
-					Payload: params.ForgeEndpoint{
-						Name:          "new-github-endpoint",
-						Description:   "new github endpoint",
-						APIBaseURL:    "https://api.github.com",
-						UploadBaseURL: "https://uploads.github.com",
-						BaseURL:       "https://github.com",
-						CACertBundle:  []byte("foobar"),
-					},
-				}, nil)
 			},
 			wantErr: false,
 		},
@@ -434,7 +416,7 @@ func TestGitHubEndpointReconciler_reconcileNormal(t *testing.T) {
 						CACertBundle:  []byte(""),
 					})).Return(nil, endpoints.NewUpdateGithubEndpointDefault(400))
 			},
-			wantErr: true,
+			wantErr: false, // 400 errors now return nil error with backoff
 		},
 		{
 			name: "github-endpoint update - no ca cert bundle secret found",
@@ -555,24 +537,6 @@ func TestGitHubEndpointReconciler_reconcileNormal(t *testing.T) {
 							CACertBundle:  []byte(""),
 						},
 					}, nil)
-				m.UpdateEndpoint(endpoints.NewUpdateGithubEndpointParams().
-					WithName("existing-github-endpoint").
-					WithBody(params.UpdateGithubEndpointParams{
-						Description:   util.StringPtr("existing-github-endpoint"),
-						APIBaseURL:    util.StringPtr("https://api.github.com"),
-						UploadBaseURL: util.StringPtr("https://uploads.github.com"),
-						BaseURL:       util.StringPtr("https://github.com"),
-						CACertBundle:  []byte(""),
-					})).Return(&endpoints.UpdateGithubEndpointOK{
-					Payload: params.ForgeEndpoint{
-						Name:          "existing-github-endpoint",
-						Description:   "existing-github-endpoint",
-						APIBaseURL:    "https://api.github.com",
-						UploadBaseURL: "https://uploads.github.com",
-						BaseURL:       "https://github.com",
-						CACertBundle:  []byte(""),
-					},
-				}, nil)
 			},
 			wantErr: false,
 		},
