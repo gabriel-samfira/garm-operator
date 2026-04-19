@@ -1232,11 +1232,6 @@ func (in *ScaleSetList) DeepCopyObject() runtime.Object {
 func (in *ScaleSetSpec) DeepCopyInto(out *ScaleSetSpec) {
 	*out = *in
 	in.GitHubScopeRef.DeepCopyInto(&out.GitHubScopeRef)
-	if in.Tags != nil {
-		in, out := &in.Tags, &out.Tags
-		*out = make([]string, len(*in))
-		copy(*out, *in)
-	}
 	if in.TemplateID != nil {
 		in, out := &in.TemplateID, &out.TemplateID
 		*out = new(uint)

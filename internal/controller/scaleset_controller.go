@@ -148,6 +148,7 @@ func (r *ScaleSetReconciler) reconcileCreate(ctx context.Context, scaleSetClient
 	event.Info(r.Recorder, scaleSet, "creating scale set in garm succeeded")
 
 	scaleSet.Status.ID = strconv.FormatUint(uint64(garmScaleSet.ID), 10)
+	scaleSet.Status.ScaleSetID = garmScaleSet.ScaleSetID
 
 	conditions.MarkTrue(scaleSet, conditions.ReadyCondition, conditions.SuccessfulReconcileReason, "")
 
@@ -213,6 +214,19 @@ func (r *ScaleSetReconciler) reconcileDelete(ctx context.Context, scaleSetClient
 		return ctrl.Result{}, nil
 	}
 
+	// disable scale set before deleting
+	disabled := false
+	_, err := scaleSetClient.UpdateScaleSet(scalesets.NewUpdateScaleSetParams().
+		WithScalesetID(scaleSet.Status.ID).
+		WithBody(params.UpdateScaleSetParams{
+			Enabled: &disabled,
+		}))
+	if err != nil {
+		conditions.MarkFalse(scaleSet, conditions.ReadyCondition, conditions.DeletionFailedReason, err.Error())
+		r.errorLog(ctx, scaleSet, err)
+		return ctrl.Result{}, err
+	}
+
 	// delete scale set in garm
 	if err := scaleSetClient.DeleteScaleSet(scalesets.NewDeleteScaleSetParams().WithScalesetID(scaleSet.Status.ID)); err != nil {
 		conditions.MarkFalse(scaleSet, conditions.ReadyCondition, conditions.DeletionFailedReason, err.Error())
@@ -252,7 +266,7 @@ func (r *ScaleSetReconciler) compareScaleSetSpecs(ctx context.Context, scaleSet 
 			Prefix: scaleSet.Spec.RunnerPrefix,
 		},
 		Name:                   scaleSet.Spec.Name,
-		ScaleSetID:             scaleSet.Spec.ScaleSetID,
+		ScaleSetID:             scaleSet.Status.ScaleSetID,
 		DisableUpdate:          scaleSet.Spec.DisableUpdate,
 		MaxRunners:             scaleSet.Spec.MaxRunners,
 		MinIdleRunners:         scaleSet.Spec.MinIdleRunners,

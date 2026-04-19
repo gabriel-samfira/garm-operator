@@ -12,6 +12,7 @@ type InstanceClient interface {
 	GetInstance(params *instances.GetInstanceParams) (*instances.GetInstanceOK, error)
 	ListInstances(params *instances.ListInstancesParams) (*instances.ListInstancesOK, error)
 	ListPoolInstances(params *instances.ListPoolInstancesParams) (*instances.ListPoolInstancesOK, error)
+	ListScaleSetInstances(params *instances.ListScaleSetInstancesParams) (*instances.ListScaleSetInstancesOK, error)
 	DeleteInstance(params *instances.DeleteInstanceParams) error
 }
 
@@ -58,6 +59,18 @@ func (i *instanceClient) ListPoolInstances(params *instances.ListPoolInstancesPa
 			return nil, err
 		}
 		return instances, nil
+	})
+}
+
+func (i *instanceClient) ListScaleSetInstances(params *instances.ListScaleSetInstancesParams) (*instances.ListScaleSetInstancesOK, error) {
+	return EnsureAuth(func() (*instances.ListScaleSetInstancesOK, error) {
+		metrics.TotalGarmCalls.WithLabelValues("instances.ListScaleSet").Inc()
+		result, err := i.GarmAPI().Instances.ListScaleSetInstances(params, i.Token())
+		if err != nil {
+			metrics.GarmCallErrors.WithLabelValues("instances.ListScaleSet").Inc()
+			return nil, err
+		}
+		return result, nil
 	})
 }
 
