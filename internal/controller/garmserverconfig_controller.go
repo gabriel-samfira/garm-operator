@@ -127,14 +127,20 @@ func (r *GarmServerConfigReconciler) updateControllerInfo(ctx context.Context, c
 		return controllerInfo, nil
 	}
 
-	updateParams := garmcontroller.NewUpdateControllerParams().WithBody(params.UpdateControllerParams{
-		MetadataURL:          util.StringPtr(garmServerConfigCR.Spec.MetadataURL),
-		CallbackURL:          util.StringPtr(garmServerConfigCR.Spec.CallbackURL),
-		WebhookURL:           util.StringPtr(garmServerConfigCR.Spec.WebhookURL),
-		AgentURL:             util.StringPtr(garmServerConfigCR.Spec.AgentURL),
-		GARMAgentReleasesURL: util.StringPtr(garmServerConfigCR.Spec.GARMAgentReleasesURL),
-		SyncGARMAgentTools:   &garmServerConfigCR.Spec.SyncGARMAgentTools,
-	})
+	body := params.UpdateControllerParams{
+		MetadataURL: util.StringPtr(garmServerConfigCR.Spec.MetadataURL),
+		CallbackURL: util.StringPtr(garmServerConfigCR.Spec.CallbackURL),
+		WebhookURL:  util.StringPtr(garmServerConfigCR.Spec.WebhookURL),
+	}
+	if garmServerConfigCR.Spec.AgentURL != "" {
+		body.AgentURL = util.StringPtr(garmServerConfigCR.Spec.AgentURL)
+	}
+	if garmServerConfigCR.Spec.GARMAgentReleasesURL != "" {
+		body.GARMAgentReleasesURL = util.StringPtr(garmServerConfigCR.Spec.GARMAgentReleasesURL)
+	}
+	body.SyncGARMAgentTools = &garmServerConfigCR.Spec.SyncGARMAgentTools
+
+	updateParams := garmcontroller.NewUpdateControllerParams().WithBody(body)
 
 	log.Info("Updating controller info in garm")
 	response, err := client.UpdateController(updateParams)
