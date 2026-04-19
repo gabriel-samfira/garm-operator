@@ -17,4 +17,6 @@ const (
 	ScaleSetFinalizerName        = groupName + "/scaleset"
 	TemplateFinalizerName        = groupName + "/template"
 	PausedAnnotation             = groupName + "/paused"
+	LastToolsMetadataURL         = groupName + "/last-tools-metadata-url"
+	LastUseInternalToolsMetadata = groupName + "/last-use-internal-tools-metadata"
 )

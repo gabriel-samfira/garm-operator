@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"time"
 
 	"github.com/cloudbase/garm/client/endpoints"
 	"github.com/cloudbase/garm/params"
@@ -128,6 +129,14 @@ func (r *GitHubEndpointReconciler) reconcileNormal(ctx context.Context, client g
 	if r.endpointNeedsUpdate(endpoint, garmEndpoint, caCertBundleSecret) {
 		garmEndpoint, err = r.updateEndpoint(ctx, client, endpoint, caCertBundleSecret)
 		if err != nil {
+			// If it's a 400 error (validation error like "cannot update endpoint URLs with existing credentials"),
+			// use explicit backoff to avoid spamming GARM
+			if garmClient.IsBadRequestError(err) {
+				event.Error(r.Recorder, endpoint, "Cannot update endpoint - likely credentials still attached")
+				conditions.MarkFalse(endpoint, conditions.ReadyCondition, conditions.GarmAPIErrorReason, err.Error())
+				return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+			}
+
 			event.Error(r.Recorder, endpoint, err.Error())
 			conditions.MarkFalse(endpoint, conditions.ReadyCondition, conditions.GarmAPIErrorReason, err.Error())
 			return ctrl.Result{}, err
@@ -188,6 +197,13 @@ func (r *GitHubEndpointReconciler) endpointNeedsUpdate(endpoint *garmoperatorv1b
 		endpoint.Spec.UploadBaseURL != garmEndpoint.UploadBaseURL ||
 		endpoint.Spec.BaseURL != garmEndpoint.BaseURL ||
 		caCertBundleSecret != string(garmEndpoint.CACertBundle)
+	descDiff := endpoint.Spec.Description != garmEndpoint.Description
+	apiDiff := endpoint.Spec.APIBaseURL != garmEndpoint.APIBaseURL
+	uploadDiff := endpoint.Spec.UploadBaseURL != garmEndpoint.UploadBaseURL
+	baseDiff := endpoint.Spec.BaseURL != garmEndpoint.BaseURL
+	caDiff := caCertBundleSecret != string(garmEndpoint.CACertBundle)
+
+	return descDiff || apiDiff || uploadDiff || baseDiff || caDiff
 }
 
 func (r *GitHubEndpointReconciler) updateEndpoint(ctx context.Context, client garmClient.EndpointClient, endpoint *garmoperatorv1beta1.GitHubEndpoint, caCertBundleSecret string) (params.ForgeEndpoint, error) {
