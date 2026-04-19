@@ -11,6 +11,7 @@ import (
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/client/enterprises"
+	"github.com/cloudbase/garm/client/instances"
 	"github.com/cloudbase/garm/client/scalesets"
 	"github.com/cloudbase/garm/params"
 	"go.uber.org/mock/gomock"
@@ -391,11 +392,12 @@ func TestScaleSetReconciler_reconcileDelete(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	tests := []struct {
-		name              string
-		object            runtime.Object
-		runtimeObjects    []runtime.Object
-		expectGarmRequest func(m *mock.MockScaleSetClientMockRecorder)
-		wantErr           bool
+		name                  string
+		object                runtime.Object
+		runtimeObjects        []runtime.Object
+		expectGarmRequest     func(m *mock.MockScaleSetClientMockRecorder)
+		expectInstanceRequest func(m *mock.MockInstanceClientMockRecorder)
+		wantErr               bool
 	}{
 		{
 			name: "delete scaleset with status ID",
@@ -429,17 +431,83 @@ func TestScaleSetReconciler_reconcileDelete(t *testing.T) {
 			runtimeObjects: []runtime.Object{},
 			expectGarmRequest: func(m *mock.MockScaleSetClientMockRecorder) {
 				disabled := false
+				minIdle := uint(0)
 				m.UpdateScaleSet(
 					scalesets.NewUpdateScaleSetParams().
 						WithScalesetID("42").
 						WithBody(params.UpdateScaleSetParams{
-							Enabled: &disabled,
+							Enabled:        &disabled,
+							MinIdleRunners: &minIdle,
 						}),
 				).Return(&scalesets.UpdateScaleSetOK{}, nil)
 				m.DeleteScaleSet(
 					scalesets.NewDeleteScaleSetParams().
 						WithScalesetID("42"),
 				).Return(nil)
+			},
+			expectInstanceRequest: func(m *mock.MockInstanceClientMockRecorder) {
+				m.ListScaleSetInstances(
+					instances.NewListScaleSetInstancesParams().WithScalesetID("42"),
+				).Return(&instances.ListScaleSetInstancesOK{Payload: []params.Instance{}}, nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "delete scaleset with status ID and active runners",
+			object: &garmoperatorv1beta1.ScaleSet{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "ScaleSet",
+					APIVersion: garmoperatorv1beta1.GroupVersion.Group + "/" + garmoperatorv1beta1.GroupVersion.Version,
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-scaleset",
+					Namespace: namespaceName,
+					Finalizers: []string{
+						key.ScaleSetFinalizerName,
+					},
+				},
+				Spec: garmoperatorv1beta1.ScaleSetSpec{
+					GitHubScopeRef: corev1.TypedLocalObjectReference{
+						APIGroup: &garmoperatorv1beta1.GroupVersion.Group,
+						Kind:     string(garmoperatorv1beta1.EnterpriseScope),
+						Name:     "test-enterprise",
+					},
+					Name:         "my-scaleset",
+					ProviderName: "kubernetes_external",
+					MaxRunners:   5,
+					Enabled:      true,
+				},
+				Status: garmoperatorv1beta1.ScaleSetStatus{
+					ID: "42",
+				},
+			},
+			runtimeObjects: []runtime.Object{},
+			expectGarmRequest: func(m *mock.MockScaleSetClientMockRecorder) {
+				disabled := false
+				minIdle := uint(0)
+				m.UpdateScaleSet(
+					scalesets.NewUpdateScaleSetParams().
+						WithScalesetID("42").
+						WithBody(params.UpdateScaleSetParams{
+							Enabled:        &disabled,
+							MinIdleRunners: &minIdle,
+						}),
+				).Return(&scalesets.UpdateScaleSetOK{}, nil)
+				m.DeleteScaleSet(
+					scalesets.NewDeleteScaleSetParams().
+						WithScalesetID("42"),
+				).Return(nil)
+			},
+			expectInstanceRequest: func(m *mock.MockInstanceClientMockRecorder) {
+				m.ListScaleSetInstances(
+					instances.NewListScaleSetInstancesParams().WithScalesetID("42"),
+				).Return(&instances.ListScaleSetInstancesOK{Payload: []params.Instance{
+					{Name: "runner-1", Status: commonParams.InstanceRunning},
+					{Name: "runner-2", Status: commonParams.InstanceError},
+					{Name: "runner-3", Status: commonParams.InstancePendingCreate},
+				}}, nil)
+				m.DeleteInstance(instances.NewDeleteInstanceParams().WithInstanceName("runner-1")).Return(nil)
+				m.DeleteInstance(instances.NewDeleteInstanceParams().WithInstanceName("runner-2")).Return(nil)
 			},
 			wantErr: false,
 		},
@@ -472,9 +540,10 @@ func TestScaleSetReconciler_reconcileDelete(t *testing.T) {
 					ID: "",
 				},
 			},
-			runtimeObjects:    []runtime.Object{},
-			expectGarmRequest: func(_ *mock.MockScaleSetClientMockRecorder) {},
-			wantErr:           false,
+			runtimeObjects:        []runtime.Object{},
+			expectGarmRequest:     func(_ *mock.MockScaleSetClientMockRecorder) {},
+			expectInstanceRequest: func(_ *mock.MockInstanceClientMockRecorder) {},
+			wantErr:               false,
 		},
 	}
 	for _, tt := range tests {
@@ -502,7 +571,10 @@ func TestScaleSetReconciler_reconcileDelete(t *testing.T) {
 			mockScaleSetClient := mock.NewMockScaleSetClient(mockCtrl)
 			tt.expectGarmRequest(mockScaleSetClient.EXPECT())
 
-			_, err = reconciler.reconcileDelete(context.Background(), mockScaleSetClient, scaleSet)
+			mockInstanceClient := mock.NewMockInstanceClient(mockCtrl)
+			tt.expectInstanceRequest(mockInstanceClient.EXPECT())
+
+			_, err = reconciler.reconcileDelete(context.Background(), mockScaleSetClient, scaleSet, mockInstanceClient)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ScaleSetReconciler.reconcileDelete() error = %v, wantErr %v", err, tt.wantErr)
 				return

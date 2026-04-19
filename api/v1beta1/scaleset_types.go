@@ -45,12 +45,21 @@ type ScaleSetSpec struct {
 
 	// +optional
 	TemplateID *uint `json:"templateId,omitempty"`
+
+	// CustomLabels are additional labels that will be added to the scale set
+	// when it is created. Custom labels can only be set during creation and
+	// are read-only after that. The scale set name is always included as a
+	// system label automatically.
+	// +optional
+	CustomLabels []string `json:"customLabels,omitempty"`
 }
 
 // ScaleSetStatus defines the observed state of ScaleSet
 type ScaleSetStatus struct {
-	ID         string `json:"id"`
-	ScaleSetID int    `json:"scaleSetId,omitempty"`
+	ID                     string `json:"id"`
+	ScaleSetID             int    `json:"scaleSetId,omitempty"`
+	LongRunningIdleRunners uint   `json:"longRunningIdleRunners"`
+	Selector               string `json:"selector"`
 
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
@@ -72,6 +81,7 @@ func (s *ScaleSet) GetConditions() []metav1.Condition {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:storageversion
+//+kubebuilder:subresource:scale:specpath=.spec.minIdleRunners,statuspath=.status.longRunningIdleRunners,selectorpath=.status.selector
 //+kubebuilder:resource:path=scalesets,scope=Namespaced,categories=garm,shortName=ss
 //+kubebuilder:printcolumn:name="ID",type=string,JSONPath=`.status.id`
 //+kubebuilder:printcolumn:name="MinIdleRunners",type=string,JSONPath=`.spec.minIdleRunners`

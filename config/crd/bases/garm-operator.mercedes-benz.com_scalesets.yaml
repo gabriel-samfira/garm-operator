@@ -87,6 +87,15 @@ spec:
           spec:
             description: ScaleSetSpec defines the desired state of ScaleSet
             properties:
+              customLabels:
+                description: |-
+                  CustomLabels are additional labels that will be added to the scale set
+                  when it is created. Custom labels can only be set during creation and
+                  are read-only after that. The scale set name is always included as a
+                  system label automatically.
+                items:
+                  type: string
+                type: array
               disableUpdate:
                 type: boolean
               enableShell:
@@ -217,13 +226,23 @@ spec:
                 type: array
               id:
                 type: string
+              longRunningIdleRunners:
+                type: integer
               scaleSetId:
                 type: integer
+              selector:
+                type: string
             required:
             - id
+            - longRunningIdleRunners
+            - selector
             type: object
         type: object
     served: true
     storage: true
     subresources:
+      scale:
+        labelSelectorPath: .status.selector
+        specReplicasPath: .spec.minIdleRunners
+        statusReplicasPath: .status.longRunningIdleRunners
       status: {}
