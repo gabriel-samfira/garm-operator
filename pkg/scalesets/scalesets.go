@@ -58,6 +58,7 @@ func CreateScaleSet(ctx context.Context, client garmClient.ScaleSetClient, scale
 		EnableShell:            scaleSet.Spec.EnableShell,
 		GitHubRunnerGroup:      scaleSet.Spec.GitHubRunnerGroup,
 		TemplateID:             scaleSet.Spec.TemplateID,
+		Labels:                 scaleSet.Spec.CustomLabels,
 	}
 
 	switch scope {
