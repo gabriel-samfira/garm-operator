@@ -19,10 +19,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	crEvent "sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	garmoperatorv1beta1 "github.com/mercedes-benz/garm-operator/api/v1beta1"
 	"github.com/mercedes-benz/garm-operator/pkg/annotations"
@@ -37,8 +39,9 @@ import (
 // RepositoryReconciler reconciles a Repository object
 type RepositoryReconciler struct {
 	client.Client
-	Scheme   *runtime.Scheme
-	Recorder record.EventRecorder
+	Scheme        *runtime.Scheme
+	Recorder      record.EventRecorder
+	ReconcileChan chan crEvent.GenericEvent
 }
 
 //+kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
@@ -109,7 +112,7 @@ func (r *RepositoryReconciler) reconcileNormal(ctx context.Context, client garmC
 	}
 	conditions.MarkTrue(repository, conditions.WebhookSecretReference, conditions.FetchingWebhookSecretRefSuccessReason, "")
 
-	credentials, err := r.getCredentialsRef(ctx, repository)
+	credentialsName, forgeType, err := r.getCredentialsRef(ctx, repository)
 	if err != nil {
 		event.Error(r.Recorder, repository, err.Error())
 		conditions.MarkFalse(repository, conditions.ReadyCondition, conditions.FetchingGithubCredentialsRefFailedReason, err.Error())
@@ -127,7 +130,7 @@ func (r *RepositoryReconciler) reconcileNormal(ctx context.Context, client garmC
 
 	// create repository on garm side if it does not exist
 	if reflect.ValueOf(garmRepository).IsZero() {
-		garmRepository, err = r.createRepository(ctx, client, repository, webhookSecret)
+		garmRepository, err = r.createRepository(ctx, client, repository, webhookSecret, forgeType)
 		if err != nil {
 			event.Error(r.Recorder, repository, err.Error())
 			conditions.MarkFalse(repository, conditions.ReadyCondition, conditions.GarmAPIErrorReason, err.Error())
@@ -137,7 +140,7 @@ func (r *RepositoryReconciler) reconcileNormal(ctx context.Context, client garmC
 
 	// update repository anytime
 	garmRepository, err = r.updateRepository(ctx, client, garmRepository.ID, params.UpdateEntityParams{
-		CredentialsName:  credentials.Name,
+		CredentialsName:  credentialsName,
 		WebhookSecret:    webhookSecret,
 		PoolBalancerType: repository.Spec.PoolBalancerType,
 		AgentMode:        &repository.Spec.AgentMode,
@@ -163,7 +166,7 @@ func (r *RepositoryReconciler) reconcileNormal(ctx context.Context, client garmC
 	return ctrl.Result{}, nil
 }
 
-func (r *RepositoryReconciler) createRepository(ctx context.Context, client garmClient.RepositoryClient, repository *garmoperatorv1beta1.Repository, webhookSecret string) (params.Repository, error) {
+func (r *RepositoryReconciler) createRepository(ctx context.Context, client garmClient.RepositoryClient, repository *garmoperatorv1beta1.Repository, webhookSecret string, forgeType params.EndpointType) (params.Repository, error) {
 	log := log.FromContext(ctx)
 	log.WithValues("repository", repository.Name)
 
@@ -176,9 +179,10 @@ func (r *RepositoryReconciler) createRepository(ctx context.Context, client garm
 				Name:             repository.Name,
 				CredentialsName:  repository.GetCredentialsName(),
 				Owner:            repository.Spec.Owner,
-				WebhookSecret:    webhookSecret, // gh hook secret
+				WebhookSecret:    webhookSecret,
 				PoolBalancerType: repository.Spec.PoolBalancerType,
 				AgentMode:        repository.Spec.AgentMode,
+				ForgeType:        forgeType,
 			}))
 	if err != nil {
 		log.V(1).Info(fmt.Sprintf("client.CreateRepository error: %s", err))
@@ -239,15 +243,24 @@ func (r *RepositoryReconciler) reconcileDelete(ctx context.Context, client garmC
 	event.Deleting(r.Recorder, repository, "starting repository deletion")
 	conditions.MarkFalse(repository, conditions.ReadyCondition, conditions.DeletingReason, conditions.DeletingRepoMsg)
 
-	err := client.DeleteRepository(
-		repositories.NewDeleteRepoParams().
-			WithRepoID(repository.Status.ID),
-	)
-	if err != nil {
-		log.V(1).Info(fmt.Sprintf("client.DeleteRepository error: %s", err))
-		event.Error(r.Recorder, repository, err.Error())
-		conditions.MarkFalse(repository, conditions.ReadyCondition, conditions.GarmAPIErrorReason, err.Error())
-		return ctrl.Result{}, err
+	// only attempt deletion if repository was created in GARM (has an ID)
+	if repository.Status.ID != "" {
+		err := client.DeleteRepository(
+			repositories.NewDeleteRepoParams().
+				WithRepoID(repository.Status.ID),
+		)
+		if err != nil {
+			// if repository is already gone (404), treat as success
+			if !garmClient.IsNotFoundError(err) {
+				log.V(1).Info(fmt.Sprintf("client.DeleteRepository error: %s", err))
+				event.Error(r.Recorder, repository, err.Error())
+				conditions.MarkFalse(repository, conditions.ReadyCondition, conditions.GarmAPIErrorReason, err.Error())
+				return ctrl.Result{}, err
+			}
+			log.Info("repository already deleted in GARM")
+		}
+	} else {
+		log.Info("repository was never created in GARM, skipping deletion")
 	}
 
 	if controllerutil.ContainsFinalizer(repository, key.RepositoryFinalizerName) {
@@ -264,19 +277,32 @@ func (r *RepositoryReconciler) reconcileDelete(ctx context.Context, client garmC
 	return ctrl.Result{}, nil
 }
 
-func (r *RepositoryReconciler) getCredentialsRef(ctx context.Context, repository *garmoperatorv1beta1.Repository) (*garmoperatorv1beta1.GitHubCredential, error) {
-	creds := &garmoperatorv1beta1.GitHubCredential{}
-	err := r.Get(ctx, types.NamespacedName{
+func (r *RepositoryReconciler) getCredentialsRef(ctx context.Context, repository *garmoperatorv1beta1.Repository) (string, params.EndpointType, error) {
+	credRef := repository.Spec.CredentialsRef
+	namespacedName := types.NamespacedName{
 		Namespace: repository.Namespace,
-		Name:      repository.Spec.CredentialsRef.Name,
-	}, creds)
-	if err != nil {
-		return creds, err
+		Name:      credRef.Name,
 	}
-	return creds, nil
+
+	switch credRef.Kind {
+	case "GitHubCredential":
+		creds := &garmoperatorv1beta1.GitHubCredential{}
+		if err := r.Get(ctx, namespacedName, creds); err != nil {
+			return "", "", err
+		}
+		return creds.Name, params.GithubEndpointType, nil
+	case "GiteaCredential":
+		creds := &garmoperatorv1beta1.GiteaCredential{}
+		if err := r.Get(ctx, namespacedName, creds); err != nil {
+			return "", "", err
+		}
+		return creds.Name, params.GiteaEndpointType, nil
+	default:
+		return "", "", fmt.Errorf("unsupported credentials kind: %s (must be GitHubCredential or GiteaCredential)", credRef.Kind)
+	}
 }
 
-func (r *RepositoryReconciler) findReposForCredentials(ctx context.Context, obj client.Object) []reconcile.Request {
+func (r *RepositoryReconciler) findReposForGitHubCredentials(ctx context.Context, obj client.Object) []reconcile.Request {
 	credentials, ok := obj.(*garmoperatorv1beta1.GitHubCredential)
 	if !ok {
 		return nil
@@ -289,7 +315,33 @@ func (r *RepositoryReconciler) findReposForCredentials(ctx context.Context, obj 
 
 	var requests []reconcile.Request
 	for _, repo := range repos.Items {
-		if repo.GetCredentialsName() == credentials.Name {
+		if repo.Spec.CredentialsRef.Name == credentials.Name && repo.Spec.CredentialsRef.Kind == "GitHubCredential" {
+			requests = append(requests, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Namespace: repo.Namespace,
+					Name:      repo.Name,
+				},
+			})
+		}
+	}
+
+	return requests
+}
+
+func (r *RepositoryReconciler) findReposForGiteaCredentials(ctx context.Context, obj client.Object) []reconcile.Request {
+	credentials, ok := obj.(*garmoperatorv1beta1.GiteaCredential)
+	if !ok {
+		return nil
+	}
+
+	var repos garmoperatorv1beta1.RepositoryList
+	if err := r.List(ctx, &repos); err != nil {
+		return nil
+	}
+
+	var requests []reconcile.Request
+	for _, repo := range repos.Items {
+		if repo.Spec.CredentialsRef.Name == credentials.Name && repo.Spec.CredentialsRef.Kind == "GiteaCredential" {
 			requests = append(requests, reconcile.Request{
 				NamespacedName: types.NamespacedName{
 					Namespace: repo.Namespace,
@@ -304,13 +356,24 @@ func (r *RepositoryReconciler) findReposForCredentials(ctx context.Context, obj 
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *RepositoryReconciler) SetupWithManager(mgr ctrl.Manager, options controller.Options) error {
-	return ctrl.NewControllerManagedBy(mgr).
+	builder := ctrl.NewControllerManagedBy(mgr).
 		For(&garmoperatorv1beta1.Repository{}).
 		Watches(
 			&garmoperatorv1beta1.GitHubCredential{},
-			handler.EnqueueRequestsFromMapFunc(r.findReposForCredentials),
+			handler.EnqueueRequestsFromMapFunc(r.findReposForGitHubCredentials),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
-		WithOptions(options).
-		Complete(r)
+		Watches(
+			&garmoperatorv1beta1.GiteaCredential{},
+			handler.EnqueueRequestsFromMapFunc(r.findReposForGiteaCredentials),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
+		WithOptions(options)
+
+	// Watch for websocket events if channel is provided
+	if r.ReconcileChan != nil {
+		builder = builder.WatchesRawSource(source.Channel(r.ReconcileChan, &handler.EnqueueRequestForObject{}))
+	}
+
+	return builder.Complete(r)
 }

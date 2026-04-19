@@ -249,9 +249,10 @@ func (r *RunnerReconciler) SetupWithManager(mgr ctrl.Manager, options controller
 		Complete(r)
 }
 
-func (r *RunnerReconciler) PollRunnerInstances(ctx context.Context) {
+func (r *RunnerReconciler) PollRunnerInstances(ctx context.Context, interval time.Duration) {
 	log := log.FromContext(ctx)
-	ticker := time.NewTicker(config.Config.Operator.SyncRunnersInterval)
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():

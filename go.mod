@@ -6,11 +6,13 @@ go 1.26.2
 require (
 	github.com/cloudbase/garm v0.2.0-alpha.0.20260309082206-6b8c3955eff0
 	github.com/cloudbase/garm-provider-common v0.1.8-0.20260304133539-3e3d10fe78b8
+	github.com/go-logr/logr v1.4.3
 	github.com/go-openapi/runtime v0.29.3
 	github.com/go-playground/validator/v10 v10.28.0
 	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
+	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
 	github.com/iancoleman/strcase v0.3.0
 	github.com/knadh/koanf/parsers/yaml v1.1.0
 	github.com/knadh/koanf/providers/env v1.1.0
@@ -44,7 +46,6 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.10 // indirect
-	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-openapi/analysis v0.24.3 // indirect
 	github.com/go-openapi/errors v0.22.7 // indirect
