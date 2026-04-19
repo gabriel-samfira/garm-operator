@@ -5,6 +5,7 @@ package secret
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -39,5 +40,5 @@ func FetchRef(ctx context.Context, c client.Client, ref *garmoperatorv1beta1.Sec
 		return "", fmt.Errorf("key %q in secret %s/%s not found", ref.Key, namespace, ref.Name)
 	}
 
-	return string(tokenBytes), nil
+	return strings.TrimSpace(string(tokenBytes)), nil
 }

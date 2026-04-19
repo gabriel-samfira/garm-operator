@@ -120,6 +120,9 @@ func validateProviderName(pool, oldPool *Pool) *field.Error {
 }
 
 func validateExtraSpec(pool *Pool) *field.Error {
+	if pool.Spec.ExtraSpecs == "" {
+		return nil
+	}
 	extraSpecs := json.RawMessage([]byte{})
 	fieldPath := field.NewPath("spec").Child("extraSpecs")
 	err := json.Unmarshal([]byte(pool.Spec.ExtraSpecs), &extraSpecs)
