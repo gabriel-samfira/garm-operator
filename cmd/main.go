@@ -254,6 +254,14 @@ func run() error {
 		return fmt.Errorf("unable to create controller GiteaCredential: %w", err)
 	}
 
+	if err = (&garmcontroller.ScaleSetReconciler{
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor("scaleset-controller"),
+	}).SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("unable to create controller ScaleSet: %w", err)
+	}
+
 	// webhooks
 	if err = (&garmoperatorv1beta1.Repository{}).SetupWebhookWithManager(mgr); err != nil {
 		return fmt.Errorf("unable to create webhook Repository: %w", err)

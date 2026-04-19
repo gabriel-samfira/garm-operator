@@ -74,4 +74,5 @@ const (
 	GiteaEndpointNotReconciledYetMsg  string = "GiteaEndpointRef not reconciled yet"
 	DeletingGiteaEndpointMsg          string = "Deleting gitea endpoint"
 	DeletingGiteaCredentialsMsg       string = "Deleting gitea credentials" // #nosec G101
+	DeletingScaleSetMsg               string = "Deleting scale set"
 )

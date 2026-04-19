@@ -14,5 +14,6 @@ const (
 	ServerConfigFinalizerName    = groupName + "/serverconfig"
 	GiteaEndpointFinalizerName   = groupName + "/gitea-endpoint"
 	GiteaCredentialFinalizerName = groupName + "/gitea-credentials"
+	ScaleSetFinalizerName        = groupName + "/scaleset"
 	PausedAnnotation             = groupName + "/paused"
 )
