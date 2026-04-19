@@ -13,6 +13,15 @@ type GarmServerConfigSpec struct {
 	MetadataURL string `json:"metadataUrl,omitempty"`
 	CallbackURL string `json:"callbackUrl,omitempty"`
 	WebhookURL  string `json:"webhookUrl,omitempty"`
+
+	// +optional
+	AgentURL string `json:"agentUrl,omitempty"`
+
+	// +optional
+	GARMAgentReleasesURL string `json:"garmAgentReleasesUrl,omitempty"`
+
+	// +optional
+	SyncGARMAgentTools bool `json:"syncGarmAgentTools,omitempty"`
 }
 
 // GarmServerConfigStatus defines the observed state of GarmServerConfig
@@ -23,6 +32,9 @@ type GarmServerConfigStatus struct {
 	CallbackURL          string             `json:"callbackUrl,omitempty"`
 	WebhookURL           string             `json:"webhookUrl,omitempty"`
 	ControllerWebhookURL string             `json:"controllerWebhookUrl,omitempty"`
+	AgentURL             string             `json:"agentUrl,omitempty"`
+	GARMAgentReleasesURL string             `json:"garmAgentReleasesUrl,omitempty"`
+	SyncGARMAgentTools   bool               `json:"syncGarmAgentTools,omitempty"`
 	MinimumJobAgeBackoff uint               `json:"minimumJobAgeBackoff,omitempty"`
 	Version              string             `json:"version,omitempty"`
 	Conditions           []metav1.Condition `json:"conditions,omitempty"`
