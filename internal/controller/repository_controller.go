@@ -140,6 +140,7 @@ func (r *RepositoryReconciler) reconcileNormal(ctx context.Context, client garmC
 		CredentialsName:  credentials.Name,
 		WebhookSecret:    webhookSecret,
 		PoolBalancerType: repository.Spec.PoolBalancerType,
+		AgentMode:        &repository.Spec.AgentMode,
 	})
 	if err != nil {
 		event.Error(r.Recorder, repository, err.Error())
@@ -177,6 +178,7 @@ func (r *RepositoryReconciler) createRepository(ctx context.Context, client garm
 				Owner:            repository.Spec.Owner,
 				WebhookSecret:    webhookSecret, // gh hook secret
 				PoolBalancerType: repository.Spec.PoolBalancerType,
+				AgentMode:        repository.Spec.AgentMode,
 			}))
 	if err != nil {
 		log.V(1).Info(fmt.Sprintf("client.CreateRepository error: %s", err))

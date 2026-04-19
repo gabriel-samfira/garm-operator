@@ -200,6 +200,11 @@ spec:
           spec:
             description: EnterpriseSpec defines the desired state of Enterprise
             properties:
+              agentMode:
+                description: |-
+                  AgentMode enables GARM agent mode for runners in this enterprise.
+                  When enabled, pools under this entity can use enableShell to allow shell access on runners.
+                type: boolean
               credentialsRef:
                 description: |-
                   TypedLocalObjectReference contains enough information to let you locate the

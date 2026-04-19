@@ -140,6 +140,7 @@ func (r *OrganizationReconciler) reconcileNormal(ctx context.Context, client gar
 		CredentialsName:  credentials.Name,
 		WebhookSecret:    webhookSecret,
 		PoolBalancerType: organization.Spec.PoolBalancerType,
+		AgentMode:        &organization.Spec.AgentMode,
 	})
 	if err != nil {
 		event.Error(r.Recorder, organization, err.Error())
@@ -176,6 +177,7 @@ func (r *OrganizationReconciler) createOrganization(ctx context.Context, client 
 				CredentialsName:  organization.GetCredentialsName(),
 				WebhookSecret:    webhookSecret, // gh hook secret
 				PoolBalancerType: organization.Spec.PoolBalancerType,
+				AgentMode:        organization.Spec.AgentMode,
 			}))
 	if err != nil {
 		log.V(1).Info(fmt.Sprintf("client.CreateOrganization error: %s", err))

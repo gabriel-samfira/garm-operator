@@ -366,6 +366,7 @@ func autoConvert_v1beta1_EnterpriseSpec_To_v1alpha1_EnterpriseSpec(in *v1beta1.E
 		return err
 	}
 	// WARNING: in.PoolBalancerType requires manual conversion: does not exist in peer-type
+	// WARNING: in.AgentMode requires manual conversion: does not exist in peer-type
 	return nil
 }
 
@@ -571,6 +572,7 @@ func autoConvert_v1beta1_OrganizationSpec_To_v1alpha1_OrganizationSpec(in *v1bet
 		return err
 	}
 	// WARNING: in.PoolBalancerType requires manual conversion: does not exist in peer-type
+	// WARNING: in.AgentMode requires manual conversion: does not exist in peer-type
 	return nil
 }
 
@@ -812,6 +814,7 @@ func autoConvert_v1beta1_RepositorySpec_To_v1alpha1_RepositorySpec(in *v1beta1.R
 		return err
 	}
 	// WARNING: in.PoolBalancerType requires manual conversion: does not exist in peer-type
+	// WARNING: in.AgentMode requires manual conversion: does not exist in peer-type
 	return nil
 }
 
