@@ -18,6 +18,11 @@ type RepositorySpec struct {
 	// WebhookSecretRef represents a secret that should be used for the webhook
 	WebhookSecretRef SecretRef               `json:"webhookSecretRef"`
 	PoolBalancerType params.PoolBalancerType `json:"poolBalancerType,omitempty"`
+
+	// +optional
+	// AgentMode enables GARM agent mode for runners in this repository.
+	// When enabled, pools under this entity can use enableShell to allow shell access on runners.
+	AgentMode bool `json:"agentMode,omitempty"`
 }
 
 // RepositoryStatus defines the observed state of Repository
