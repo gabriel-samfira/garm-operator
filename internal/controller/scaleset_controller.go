@@ -265,7 +265,7 @@ func (r *ScaleSetReconciler) reconcileDelete(ctx context.Context, scaleSetClient
 
 	// scale down - delete all deletable runners
 	log.Info("Scaling scale set down before deletion", "scaleSet", scaleSet.Name, "deletableRunners", len(deletableRunners))
-	event.Scaling(r.Recorder, scaleSet, fmt.Sprintf("scale idle runners down to 0 before deleting"))
+	event.Scaling(r.Recorder, scaleSet, "scale idle runners down to 0 before deleting")
 
 	for _, runner := range deletableRunners {
 		if err := instanceClient.DeleteInstance(instances.NewDeleteInstanceParams().WithInstanceName(runner.Name)); err != nil {
