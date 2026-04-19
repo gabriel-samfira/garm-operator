@@ -138,12 +138,6 @@ spec:
                 type: integer
               runnerPrefix:
                 type: string
-              scaleSetId:
-                type: integer
-              tags:
-                items:
-                  type: string
-                type: array
               templateId:
                 type: integer
             required:
@@ -158,7 +152,6 @@ spec:
             - osType
             - providerName
             - runnerBootstrapTimeout
-            - scaleSetId
             type: object
             x-kubernetes-validations:
             - message: minIdleRunners must be less than or equal to maxRunners
@@ -224,6 +217,8 @@ spec:
                 type: array
               id:
                 type: string
+              scaleSetId:
+                type: integer
             required:
             - id
             type: object

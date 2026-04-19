@@ -965,6 +965,7 @@ func autoConvert_v1beta1_RunnerStatus_To_v1alpha1_RunnerStatus(in *v1beta1.Runne
 	out.Status = garmparams.RunnerStatus(in.Status)
 	out.InstanceStatus = params.InstanceStatus(in.InstanceStatus)
 	out.PoolID = in.PoolID
+	// WARNING: in.ScaleSetID requires manual conversion: does not exist in peer-type
 	out.ProviderFault = in.ProviderFault
 	out.GitHubRunnerGroup = in.GitHubRunnerGroup
 	// WARNING: in.Conditions requires manual conversion: does not exist in peer-type

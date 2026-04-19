@@ -98,3 +98,18 @@ func (mr *MockInstanceClientMockRecorder) ListPoolInstances(params any) *gomock.
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListPoolInstances", reflect.TypeOf((*MockInstanceClient)(nil).ListPoolInstances), params)
 }
+
+// ListScaleSetInstances mocks base method.
+func (m *MockInstanceClient) ListScaleSetInstances(params *instances.ListScaleSetInstancesParams) (*instances.ListScaleSetInstancesOK, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListScaleSetInstances", params)
+	ret0, _ := ret[0].(*instances.ListScaleSetInstancesOK)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListScaleSetInstances indicates an expected call of ListScaleSetInstances.
+func (mr *MockInstanceClientMockRecorder) ListScaleSetInstances(params any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListScaleSetInstances", reflect.TypeOf((*MockInstanceClient)(nil).ListScaleSetInstances), params)
+}
