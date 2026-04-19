@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -26,6 +27,7 @@ import (
 	garmcontroller "github.com/mercedes-benz/garm-operator/internal/controller"
 	"github.com/mercedes-benz/garm-operator/pkg/client"
 	"github.com/mercedes-benz/garm-operator/pkg/config"
+	"github.com/mercedes-benz/garm-operator/pkg/events"
 	"github.com/mercedes-benz/garm-operator/pkg/flags"
 	"github.com/mercedes-benz/garm-operator/pkg/version"
 )
@@ -144,10 +146,20 @@ func run() error {
 		return fmt.Errorf("garm-operator is not compatible with Garm version %s. Minimal required version is %s", controllerInfo.Payload.Version, version.MinVersion)
 	}
 
+	// Create reconcile channels for websocket events (if enabled)
+	var enterpriseChan, organizationChan, repositoryChan, runnerChan chan event.GenericEvent
+	if config.Config.Operator.RunnerReconciliation {
+		enterpriseChan = make(chan event.GenericEvent, 100)
+		organizationChan = make(chan event.GenericEvent, 100)
+		repositoryChan = make(chan event.GenericEvent, 100)
+		runnerChan = make(chan event.GenericEvent, 100)
+	}
+
 	if err = (&garmcontroller.EnterpriseReconciler{
-		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor("enterprise-controller"),
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		Recorder:      mgr.GetEventRecorderFor("enterprise-controller"),
+		ReconcileChan: enterpriseChan,
 	}).SetupWithManager(mgr,
 		controller.Options{
 			MaxConcurrentReconciles: config.Config.Operator.EnterpriseConcurrency,
@@ -169,9 +181,10 @@ func run() error {
 	}
 
 	if err = (&garmcontroller.OrganizationReconciler{
-		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor("organization-controller"),
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		Recorder:      mgr.GetEventRecorderFor("organization-controller"),
+		ReconcileChan: organizationChan,
 	}).SetupWithManager(mgr,
 		controller.Options{
 			MaxConcurrentReconciles: config.Config.Operator.OrganizationConcurrency,
@@ -181,9 +194,10 @@ func run() error {
 	}
 
 	if err = (&garmcontroller.RepositoryReconciler{
-		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor("repository-controller"),
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		Recorder:      mgr.GetEventRecorderFor("repository-controller"),
+		ReconcileChan: repositoryChan,
 	}).SetupWithManager(mgr,
 		controller.Options{
 			MaxConcurrentReconciles: config.Config.Operator.RepositoryConcurrency,
@@ -196,7 +210,7 @@ func run() error {
 		runnerReconciler := &garmcontroller.RunnerReconciler{
 			Client:        mgr.GetClient(),
 			Scheme:        mgr.GetScheme(),
-			ReconcileChan: make(chan event.GenericEvent),
+			ReconcileChan: runnerChan,
 		}
 
 		// setup controller so it can reconcile if events from runnerEvents are queued
@@ -208,10 +222,23 @@ func run() error {
 			return fmt.Errorf("unable to create controller Runner: %w", err)
 		}
 
-		// fetch runner instances periodically and enqueue reconcile events for runner ctrl if external system has changed
 		ctx, cancel := context.WithCancel(ctx)
-		go runnerReconciler.PollRunnerInstances(ctx)
 		defer cancel()
+
+		// start websocket watcher for real-time instance and entity events
+		watcher := events.NewWatcher(client.Client, config.Config.Operator.WatchNamespace, events.WatcherChannels{
+			RunnerChan:       runnerChan,
+			RepositoryChan:   repositoryChan,
+			OrganizationChan: organizationChan,
+			EnterpriseChan:   enterpriseChan,
+		})
+		watcher.Start(ctx)
+
+		// keep polling as a fallback to catch any events missed during websocket reconnections
+		// use 5 minute interval (much longer than the websocket) as a safety net
+		fallbackPollInterval := 5 * time.Minute
+		setupLog.Info("Starting runner instance polling as fallback", "interval", fallbackPollInterval)
+		go runnerReconciler.PollRunnerInstances(ctx, fallbackPollInterval)
 	}
 
 	if err = (&garmcontroller.GarmServerConfigReconciler{

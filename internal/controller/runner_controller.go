@@ -5,6 +5,7 @@ package controller
 import (
 	"context"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -193,16 +194,6 @@ func (r *RunnerReconciler) updateRunnerStatus(ctx context.Context, runner *garmo
 		return nil
 	}
 
-	poolName := garmRunner.PoolID
-	pools := &garmoperatorv1beta1.PoolList{}
-	if err := r.List(ctx, pools); err == nil {
-		filteredPools := filter.Match(pools.Items, garmoperatorv1beta1.MatchesID(garmRunner.PoolID))
-
-		if len(filteredPools) > 0 {
-			poolName = filteredPools[0].Name
-		}
-	}
-
 	runner.Status.ID = garmRunner.ID
 	runner.Status.ProviderID = garmRunner.ProviderID
 	runner.Status.AgentID = garmRunner.AgentID
@@ -214,9 +205,37 @@ func (r *RunnerReconciler) updateRunnerStatus(ctx context.Context, runner *garmo
 	runner.Status.Addresses = garmRunner.Addresses
 	runner.Status.Status = garmRunner.RunnerStatus
 	runner.Status.InstanceStatus = garmRunner.Status
-	runner.Status.PoolID = poolName
 	runner.Status.ProviderFault = string(garmRunner.ProviderFault)
 	runner.Status.GitHubRunnerGroup = garmRunner.GitHubRunnerGroup
+
+	if garmRunner.ScaleSetID != 0 {
+		// runner belongs to a scale set
+		scaleSetID := strconv.FormatUint(uint64(garmRunner.ScaleSetID), 10)
+		scaleSetName := scaleSetID
+		scaleSets := &garmoperatorv1beta1.ScaleSetList{}
+		if err := r.List(ctx, scaleSets); err == nil {
+			for _, ss := range scaleSets.Items {
+				if ss.Status.ID == scaleSetID {
+					scaleSetName = ss.Name
+					break
+				}
+			}
+		}
+		runner.Status.ScaleSetID = scaleSetName
+		runner.Status.PoolID = ""
+	} else {
+		// runner belongs to a pool
+		poolName := garmRunner.PoolID
+		pools := &garmoperatorv1beta1.PoolList{}
+		if err := r.List(ctx, pools); err == nil {
+			filteredPools := filter.Match(pools.Items, garmoperatorv1beta1.MatchesID(garmRunner.PoolID))
+			if len(filteredPools) > 0 {
+				poolName = filteredPools[0].Name
+			}
+		}
+		runner.Status.PoolID = poolName
+		runner.Status.ScaleSetID = ""
+	}
 
 	return nil
 }
@@ -230,9 +249,10 @@ func (r *RunnerReconciler) SetupWithManager(mgr ctrl.Manager, options controller
 		Complete(r)
 }
 
-func (r *RunnerReconciler) PollRunnerInstances(ctx context.Context) {
+func (r *RunnerReconciler) PollRunnerInstances(ctx context.Context, interval time.Duration) {
 	log := log.FromContext(ctx)
-	ticker := time.NewTicker(config.Config.Operator.SyncRunnersInterval)
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
@@ -260,6 +280,17 @@ func (r *RunnerReconciler) EnqueueRunnerInstances(ctx context.Context, instanceC
 	if err != nil {
 		return err
 	}
+
+	// also fetch runners belonging to scale sets
+	scaleSets, err := r.fetchScaleSets(ctx)
+	if err != nil {
+		return err
+	}
+	scaleSetInstances, err := r.fetchRunnerInstancesByNamespacedScaleSets(instanceClient, scaleSets)
+	if err != nil {
+		return err
+	}
+	garmRunnerInstances = append(garmRunnerInstances, scaleSetInstances...)
 
 	runnerCRList := &garmoperatorv1beta1.RunnerList{}
 	err = r.List(ctx, runnerCRList)
@@ -322,6 +353,30 @@ func (r *RunnerReconciler) fetchRunnerInstancesByNamespacedPools(instanceClient 
 			return nil, err
 		}
 		garmRunnerInstances = append(garmRunnerInstances, poolRunners.Payload...)
+	}
+	return garmRunnerInstances, nil
+}
+
+func (r *RunnerReconciler) fetchScaleSets(ctx context.Context) (*garmoperatorv1beta1.ScaleSetList, error) {
+	scaleSets := &garmoperatorv1beta1.ScaleSetList{}
+	err := r.List(ctx, scaleSets)
+	if err != nil {
+		return nil, err
+	}
+	return scaleSets, nil
+}
+
+func (r *RunnerReconciler) fetchRunnerInstancesByNamespacedScaleSets(instanceClient garmClient.InstanceClient, scaleSets *garmoperatorv1beta1.ScaleSetList) (params.Instances, error) {
+	garmRunnerInstances := params.Instances{}
+	for _, ss := range scaleSets.Items {
+		if ss.Status.ID == "" {
+			continue
+		}
+		ssRunners, err := instanceClient.ListScaleSetInstances(instances.NewListScaleSetInstancesParams().WithScalesetID(ss.Status.ID))
+		if err != nil {
+			return nil, err
+		}
+		garmRunnerInstances = append(garmRunnerInstances, ssRunners.Payload...)
 	}
 	return garmRunnerInstances, nil
 }

@@ -18,7 +18,6 @@ type ScaleSetSpec struct {
 	GitHubScopeRef corev1.TypedLocalObjectReference `json:"githubScopeRef"`
 
 	Name          string `json:"name"`
-	ScaleSetID    int    `json:"scaleSetId"`
 	DisableUpdate bool   `json:"disableUpdate,omitempty"`
 
 	ProviderName   string              `json:"providerName"`
@@ -28,7 +27,6 @@ type ScaleSetSpec struct {
 	Flavor         string              `json:"flavor"`
 	OSType         commonParams.OSType `json:"osType"`
 	OSArch         commonParams.OSArch `json:"osArch"`
-	Tags           []string            `json:"tags,omitempty"`
 	Enabled        bool                `json:"enabled"`
 
 	RunnerBootstrapTimeout uint `json:"runnerBootstrapTimeout"`
@@ -51,7 +49,8 @@ type ScaleSetSpec struct {
 
 // ScaleSetStatus defines the observed state of ScaleSet
 type ScaleSetStatus struct {
-	ID string `json:"id"`
+	ID         string `json:"id"`
+	ScaleSetID int    `json:"scaleSetId,omitempty"`
 
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }

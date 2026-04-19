@@ -160,6 +160,7 @@ func TestRepositoryReconciler_reconcileNormal(t *testing.T) {
 					WithBody(params.UpdateEntityParams{
 						CredentialsName: "github-creds",
 						WebhookSecret:   "foobar",
+						AgentMode:       new(bool),
 					})).Return(&repositories.UpdateRepoOK{
 					//nolint:gosec
 					Payload: params.Repository{
@@ -295,6 +296,7 @@ func TestRepositoryReconciler_reconcileNormal(t *testing.T) {
 					WithBody(params.UpdateEntityParams{
 						CredentialsName: "has-changed",
 						WebhookSecret:   "has-changed",
+						AgentMode:       new(bool),
 					})).Return(&repositories.UpdateRepoOK{
 					//nolint:gosec
 					Payload: params.Repository{
@@ -430,6 +432,7 @@ func TestRepositoryReconciler_reconcileNormal(t *testing.T) {
 					WithBody(params.UpdateEntityParams{
 						CredentialsName: "github-creds",
 						WebhookSecret:   "foobar",
+						AgentMode:       new(bool),
 					})).Return(&repositories.UpdateRepoOK{
 					//nolint:gosec
 					Payload: params.Repository{
@@ -567,6 +570,7 @@ func TestRepositoryReconciler_reconcileNormal(t *testing.T) {
 						CredentialsName: "github-creds",
 						WebhookSecret:   "foobar",
 						Owner:           "test-repo",
+						ForgeType:       params.GithubEndpointType,
 					})).Return(&repositories.CreateRepoOK{
 					//nolint:gosec
 					Payload: params.Repository{
@@ -583,6 +587,7 @@ func TestRepositoryReconciler_reconcileNormal(t *testing.T) {
 					WithBody(params.UpdateEntityParams{
 						CredentialsName: "github-creds",
 						WebhookSecret:   "foobar",
+						AgentMode:       new(bool),
 					})).Return(&repositories.UpdateRepoOK{
 					//nolint:gosec
 					Payload: params.Repository{
@@ -714,6 +719,7 @@ func TestRepositoryReconciler_reconcileNormal(t *testing.T) {
 					WithBody(params.UpdateEntityParams{
 						CredentialsName: "github-creds",
 						WebhookSecret:   "foobar",
+						AgentMode:       new(bool),
 					})).Return(&repositories.UpdateRepoOK{
 					//nolint:gosec
 					Payload: params.Repository{
@@ -843,6 +849,7 @@ func TestRepositoryReconciler_reconcileNormal(t *testing.T) {
 						CredentialsName: "github-creds",
 						WebhookSecret:   "foobar",
 						Owner:           "test-repo",
+						ForgeType:       params.GithubEndpointType,
 					})).Return(&repositories.CreateRepoOK{
 					//nolint:gosec
 					Payload: params.Repository{
@@ -859,6 +866,7 @@ func TestRepositoryReconciler_reconcileNormal(t *testing.T) {
 					WithBody(params.UpdateEntityParams{
 						CredentialsName: "github-creds",
 						WebhookSecret:   "foobar",
+						AgentMode:       new(bool),
 					})).Return(&repositories.UpdateRepoOK{
 					//nolint:gosec
 					Payload: params.Repository{

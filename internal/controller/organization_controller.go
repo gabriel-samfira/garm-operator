@@ -19,10 +19,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	crEvent "sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	garmoperatorv1beta1 "github.com/mercedes-benz/garm-operator/api/v1beta1"
 	"github.com/mercedes-benz/garm-operator/pkg/annotations"
@@ -37,8 +39,9 @@ import (
 // OrganizationReconciler reconciles a Organization object
 type OrganizationReconciler struct {
 	client.Client
-	Scheme   *runtime.Scheme
-	Recorder record.EventRecorder
+	Scheme        *runtime.Scheme
+	Recorder      record.EventRecorder
+	ReconcileChan chan crEvent.GenericEvent
 }
 
 //+kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
@@ -109,7 +112,7 @@ func (r *OrganizationReconciler) reconcileNormal(ctx context.Context, client gar
 	}
 	conditions.MarkTrue(organization, conditions.WebhookSecretReference, conditions.FetchingWebhookSecretRefSuccessReason, "")
 
-	credentials, err := r.getCredentialsRef(ctx, organization)
+	credentialsName, forgeType, err := r.getCredentialsRef(ctx, organization)
 	if err != nil {
 		event.Error(r.Recorder, organization, err.Error())
 		conditions.MarkFalse(organization, conditions.ReadyCondition, conditions.FetchingGithubCredentialsRefFailedReason, err.Error())
@@ -127,7 +130,7 @@ func (r *OrganizationReconciler) reconcileNormal(ctx context.Context, client gar
 
 	// create organization on garm side if it does not exist
 	if reflect.ValueOf(garmOrganization).IsZero() {
-		garmOrganization, err = r.createOrganization(ctx, client, organization, webhookSecret)
+		garmOrganization, err = r.createOrganization(ctx, client, organization, webhookSecret, forgeType)
 		if err != nil {
 			event.Error(r.Recorder, organization, err.Error())
 			conditions.MarkFalse(organization, conditions.ReadyCondition, conditions.GarmAPIErrorReason, err.Error())
@@ -137,9 +140,10 @@ func (r *OrganizationReconciler) reconcileNormal(ctx context.Context, client gar
 
 	// update organization anytime
 	garmOrganization, err = r.updateOrganization(ctx, client, garmOrganization.ID, params.UpdateEntityParams{
-		CredentialsName:  credentials.Name,
+		CredentialsName:  credentialsName,
 		WebhookSecret:    webhookSecret,
 		PoolBalancerType: organization.Spec.PoolBalancerType,
+		AgentMode:        &organization.Spec.AgentMode,
 	})
 	if err != nil {
 		event.Error(r.Recorder, organization, err.Error())
@@ -162,7 +166,7 @@ func (r *OrganizationReconciler) reconcileNormal(ctx context.Context, client gar
 	return ctrl.Result{}, nil
 }
 
-func (r *OrganizationReconciler) createOrganization(ctx context.Context, client garmClient.OrganizationClient, organization *garmoperatorv1beta1.Organization, webhookSecret string) (params.Organization, error) {
+func (r *OrganizationReconciler) createOrganization(ctx context.Context, client garmClient.OrganizationClient, organization *garmoperatorv1beta1.Organization, webhookSecret string, forgeType params.EndpointType) (params.Organization, error) {
 	log := log.FromContext(ctx)
 	log.WithValues("organization", organization.Name)
 
@@ -174,8 +178,10 @@ func (r *OrganizationReconciler) createOrganization(ctx context.Context, client 
 			WithBody(params.CreateOrgParams{
 				Name:             organization.Name,
 				CredentialsName:  organization.GetCredentialsName(),
-				WebhookSecret:    webhookSecret, // gh hook secret
+				WebhookSecret:    webhookSecret,
 				PoolBalancerType: organization.Spec.PoolBalancerType,
+				AgentMode:        organization.Spec.AgentMode,
+				ForgeType:        forgeType,
 			}))
 	if err != nil {
 		log.V(1).Info(fmt.Sprintf("client.CreateOrganization error: %s", err))
@@ -261,19 +267,32 @@ func (r *OrganizationReconciler) reconcileDelete(ctx context.Context, client gar
 	return ctrl.Result{}, nil
 }
 
-func (r *OrganizationReconciler) getCredentialsRef(ctx context.Context, org *garmoperatorv1beta1.Organization) (*garmoperatorv1beta1.GitHubCredential, error) {
-	creds := &garmoperatorv1beta1.GitHubCredential{}
-	err := r.Get(ctx, types.NamespacedName{
+func (r *OrganizationReconciler) getCredentialsRef(ctx context.Context, org *garmoperatorv1beta1.Organization) (string, params.EndpointType, error) {
+	credRef := org.Spec.CredentialsRef
+	namespacedName := types.NamespacedName{
 		Namespace: org.Namespace,
-		Name:      org.Spec.CredentialsRef.Name,
-	}, creds)
-	if err != nil {
-		return creds, err
+		Name:      credRef.Name,
 	}
-	return creds, nil
+
+	switch credRef.Kind {
+	case "GitHubCredential":
+		creds := &garmoperatorv1beta1.GitHubCredential{}
+		if err := r.Get(ctx, namespacedName, creds); err != nil {
+			return "", "", err
+		}
+		return creds.Name, params.GithubEndpointType, nil
+	case "GiteaCredential":
+		creds := &garmoperatorv1beta1.GiteaCredential{}
+		if err := r.Get(ctx, namespacedName, creds); err != nil {
+			return "", "", err
+		}
+		return creds.Name, params.GiteaEndpointType, nil
+	default:
+		return "", "", fmt.Errorf("unsupported credentials kind: %s (must be GitHubCredential or GiteaCredential)", credRef.Kind)
+	}
 }
 
-func (r *OrganizationReconciler) findOrgsForCredentials(ctx context.Context, obj client.Object) []reconcile.Request {
+func (r *OrganizationReconciler) findOrgsForGitHubCredentials(ctx context.Context, obj client.Object) []reconcile.Request {
 	credentials, ok := obj.(*garmoperatorv1beta1.GitHubCredential)
 	if !ok {
 		return nil
@@ -286,7 +305,33 @@ func (r *OrganizationReconciler) findOrgsForCredentials(ctx context.Context, obj
 
 	var requests []reconcile.Request
 	for _, org := range orgs.Items {
-		if org.GetCredentialsName() == credentials.Name {
+		if org.Spec.CredentialsRef.Name == credentials.Name && org.Spec.CredentialsRef.Kind == "GitHubCredential" {
+			requests = append(requests, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Namespace: org.Namespace,
+					Name:      org.Name,
+				},
+			})
+		}
+	}
+
+	return requests
+}
+
+func (r *OrganizationReconciler) findOrgsForGiteaCredentials(ctx context.Context, obj client.Object) []reconcile.Request {
+	credentials, ok := obj.(*garmoperatorv1beta1.GiteaCredential)
+	if !ok {
+		return nil
+	}
+
+	var orgs garmoperatorv1beta1.OrganizationList
+	if err := r.List(ctx, &orgs); err != nil {
+		return nil
+	}
+
+	var requests []reconcile.Request
+	for _, org := range orgs.Items {
+		if org.Spec.CredentialsRef.Name == credentials.Name && org.Spec.CredentialsRef.Kind == "GiteaCredential" {
 			requests = append(requests, reconcile.Request{
 				NamespacedName: types.NamespacedName{
 					Namespace: org.Namespace,
@@ -301,13 +346,24 @@ func (r *OrganizationReconciler) findOrgsForCredentials(ctx context.Context, obj
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *OrganizationReconciler) SetupWithManager(mgr ctrl.Manager, options controller.Options) error {
-	return ctrl.NewControllerManagedBy(mgr).
+	builder := ctrl.NewControllerManagedBy(mgr).
 		For(&garmoperatorv1beta1.Organization{}).
 		Watches(
 			&garmoperatorv1beta1.GitHubCredential{},
-			handler.EnqueueRequestsFromMapFunc(r.findOrgsForCredentials),
+			handler.EnqueueRequestsFromMapFunc(r.findOrgsForGitHubCredentials),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
-		WithOptions(options).
-		Complete(r)
+		Watches(
+			&garmoperatorv1beta1.GiteaCredential{},
+			handler.EnqueueRequestsFromMapFunc(r.findOrgsForGiteaCredentials),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
+		WithOptions(options)
+
+	// Watch for websocket events if channel is provided
+	if r.ReconcileChan != nil {
+		builder = builder.WatchesRawSource(source.Channel(r.ReconcileChan, &handler.EnqueueRequestForObject{}))
+	}
+
+	return builder.Complete(r)
 }

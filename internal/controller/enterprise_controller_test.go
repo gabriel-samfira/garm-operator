@@ -157,6 +157,7 @@ func TestEnterpriseReconciler_reconcileNormal(t *testing.T) {
 					WithBody(params.UpdateEntityParams{
 						CredentialsName: "github-creds",
 						WebhookSecret:   "foobar",
+						AgentMode:       new(bool),
 					})).Return(&enterprises.UpdateEnterpriseOK{
 					//nolint:gosec
 					Payload: params.Enterprise{
@@ -287,6 +288,7 @@ func TestEnterpriseReconciler_reconcileNormal(t *testing.T) {
 					WithBody(params.UpdateEntityParams{
 						CredentialsName: "has-changed",
 						WebhookSecret:   "has-changed",
+						AgentMode:       new(bool),
 					})).Return(&enterprises.UpdateEnterpriseOK{
 					Payload: params.Enterprise{
 						ID:              "e1dbf9a6-a9f6-4594-a5ac-ae78a8f27a3e",
@@ -417,6 +419,7 @@ func TestEnterpriseReconciler_reconcileNormal(t *testing.T) {
 					WithBody(params.UpdateEntityParams{
 						CredentialsName: "github-creds",
 						WebhookSecret:   "foobar",
+						AgentMode:       new(bool),
 					})).Return(&enterprises.UpdateEnterpriseOK{
 					//nolint:gosec
 					Payload: params.Enterprise{
@@ -564,6 +567,7 @@ func TestEnterpriseReconciler_reconcileNormal(t *testing.T) {
 					WithBody(params.UpdateEntityParams{
 						CredentialsName: "github-creds",
 						WebhookSecret:   "foobar",
+						AgentMode:       new(bool),
 					})).Return(&enterprises.UpdateEnterpriseOK{
 					//nolint:gosec
 					Payload: params.Enterprise{
@@ -690,6 +694,7 @@ func TestEnterpriseReconciler_reconcileNormal(t *testing.T) {
 					WithBody(params.UpdateEntityParams{
 						CredentialsName: "github-creds",
 						WebhookSecret:   "foobar",
+						AgentMode:       new(bool),
 					})).Return(&enterprises.UpdateEnterpriseOK{
 					//nolint:gosec
 					Payload: params.Enterprise{
@@ -830,6 +835,7 @@ func TestEnterpriseReconciler_reconcileNormal(t *testing.T) {
 					WithBody(params.UpdateEntityParams{
 						CredentialsName: "github-creds",
 						WebhookSecret:   "foobar",
+						AgentMode:       new(bool),
 					})).Return(&enterprises.UpdateEnterpriseOK{
 					//nolint:gosec
 					Payload: params.Enterprise{

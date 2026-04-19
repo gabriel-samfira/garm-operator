@@ -56,6 +56,9 @@ type RunnerStatus struct {
 	// PoolID is the ID of the garm pool to which a runner belongs.
 	PoolID string `json:"poolId,omitempty"`
 
+	// ScaleSetID is the ID of the garm scale set to which a runner belongs.
+	ScaleSetID string `json:"scaleSetId,omitempty"`
+
 	// ProviderFault holds any error messages captured from the IaaS provider that is
 	// responsible for managing the lifecycle of the runner.
 	ProviderFault string `json:"providerFault,omitempty"`
@@ -79,6 +82,7 @@ type RunnerStatus struct {
 //+kubebuilder:storageversion
 //+kubebuilder:printcolumn:name="ID",type="string",JSONPath=".status.id",description="Runner ID"
 //+kubebuilder:printcolumn:name="Pool",type="string",JSONPath=".status.poolId",description="Pool CR Name"
+//+kubebuilder:printcolumn:name="ScaleSet",type="string",JSONPath=".status.scaleSetId",description="ScaleSet CR Name"
 //+kubebuilder:printcolumn:name="Garm Runner Status",type="string",JSONPath=".status.status",description="Garm Runner Status"
 //+kubebuilder:printcolumn:name="Provider Runner Status",type="string",JSONPath=".status.instanceStatus",description="Provider Runner Status"
 //+kubebuilder:printcolumn:name="Provider ID",type="string",JSONPath=".status.providerId",description="Provider ID",priority=1

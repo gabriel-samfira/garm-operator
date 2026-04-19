@@ -166,6 +166,10 @@ spec:
       jsonPath: .status.poolId
       name: Pool
       type: string
+    - description: ScaleSet CR Name
+      jsonPath: .status.scaleSetId
+      name: ScaleSet
+      type: string
     - description: Garm Runner Status
       jsonPath: .status.status
       name: Garm Runner Status
@@ -336,6 +340,10 @@ spec:
                   PeoviderID is the unique ID the provider associated
                   with the compute instance. We use this to identify the
                   instance in the provider.
+                type: string
+              scaleSetId:
+                description: ScaleSetID is the ID of the garm scale set to which a
+                  runner belongs.
                 type: string
               status:
                 description: Status is the runner status as it appears on GitHub.
