@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strconv"
 	"time"
 
 	"github.com/cloudbase/garm/client/endpoints"
@@ -117,12 +118,14 @@ func (r *GiteaEndpointReconciler) reconcileNormal(ctx context.Context, client ga
 
 	// if not found, create endpoint in garm db
 	if reflect.ValueOf(garmEndpoint).IsZero() {
-		garmEndpoint, err = r.createEndpoint(ctx, client, endpoint, caCertBundleSecret) // nolint:wastedassign
+		garmEndpoint, err = r.createEndpoint(ctx, client, endpoint, caCertBundleSecret)
 		if err != nil {
 			event.Error(r.Recorder, endpoint, err.Error())
 			conditions.MarkFalse(endpoint, conditions.ReadyCondition, conditions.GarmAPIErrorReason, err.Error())
 			return ctrl.Result{}, err
 		}
+		// persist GARM's effective default values as annotations
+		r.saveLastKnownGarmDefaults(ctx, endpoint, garmEndpoint)
 	}
 
 	// update endpoint only if spec differs from garm state
@@ -141,6 +144,8 @@ func (r *GiteaEndpointReconciler) reconcileNormal(ctx context.Context, client ga
 			conditions.MarkFalse(endpoint, conditions.ReadyCondition, conditions.GarmAPIErrorReason, err.Error())
 			return ctrl.Result{}, err
 		}
+		// persist GARM's effective values as annotations
+		r.saveLastKnownGarmDefaults(ctx, endpoint, garmEndpoint)
 	}
 
 	// set and update endpoint status
@@ -192,36 +197,60 @@ func (r *GiteaEndpointReconciler) createEndpoint(ctx context.Context, client gar
 	return retValue.Payload, nil
 }
 
+// saveLastKnownGarmDefaults persists GARM's effective values for fields that have
+// server-side defaults (ToolsMetadataURL, UseInternalToolsMetadata) as annotations.
+// This prevents reconciliation loops when the spec has zero values but GARM returns defaults.
+func (r *GiteaEndpointReconciler) saveLastKnownGarmDefaults(ctx context.Context, endpoint *garmoperatorv1beta1.GiteaEndpoint, garmEndpoint params.ForgeEndpoint) {
+	log := log.FromContext(ctx)
+
+	anns := endpoint.GetAnnotations()
+	if anns == nil {
+		anns = make(map[string]string)
+	}
+
+	anns[key.LastToolsMetadataURL] = garmEndpoint.ToolsMetadataURL
+	if garmEndpoint.UseInternalToolsMetadata != nil {
+		anns[key.LastUseInternalToolsMetadata] = strconv.FormatBool(*garmEndpoint.UseInternalToolsMetadata)
+	}
+	endpoint.SetAnnotations(anns)
+
+	if err := r.Update(ctx, endpoint); err != nil {
+		log.Error(err, "failed to save GARM default annotations")
+	}
+}
+
 func (r *GiteaEndpointReconciler) endpointNeedsUpdate(endpoint *garmoperatorv1beta1.GiteaEndpoint, garmEndpoint params.ForgeEndpoint, caCertBundleSecret string) bool {
 	descDiff := endpoint.Spec.Description != garmEndpoint.Description
 	apiDiff := endpoint.Spec.APIBaseURL != garmEndpoint.APIBaseURL
 	baseDiff := endpoint.Spec.BaseURL != garmEndpoint.BaseURL
 	caDiff := caCertBundleSecret != string(garmEndpoint.CACertBundle)
-	toolsDiff := endpoint.Spec.ToolsMetadataURL != garmEndpoint.ToolsMetadataURL
-	internalDiff := endpoint.Spec.UseInternalToolsMetadata != garmEndpoint.UseInternalToolsMetadata
+
+	// For fields with GARM defaults: if the spec has a zero value, compare GARM's
+	// current value against the last-known annotation instead. This avoids a
+	// reconciliation loop when GARM returns defaults for unset fields.
+	anns := endpoint.GetAnnotations()
+
+	var toolsDiff bool
+	if endpoint.Spec.ToolsMetadataURL == "" {
+		lastTools := anns[key.LastToolsMetadataURL]
+		toolsDiff = lastTools != "" && lastTools != garmEndpoint.ToolsMetadataURL
+	} else {
+		toolsDiff = endpoint.Spec.ToolsMetadataURL != garmEndpoint.ToolsMetadataURL
+	}
+
+	var internalDiff bool
+	if endpoint.Spec.UseInternalToolsMetadata == nil {
+		lastInternal := anns[key.LastUseInternalToolsMetadata]
+		if lastInternal != "" && garmEndpoint.UseInternalToolsMetadata != nil {
+			internalDiff = lastInternal != strconv.FormatBool(*garmEndpoint.UseInternalToolsMetadata)
+		}
+	} else if garmEndpoint.UseInternalToolsMetadata != nil {
+		internalDiff = *endpoint.Spec.UseInternalToolsMetadata != *garmEndpoint.UseInternalToolsMetadata
+	} else {
+		internalDiff = true
+	}
 
 	needsUpdate := descDiff || apiDiff || baseDiff || caDiff || toolsDiff || internalDiff
-
-	if needsUpdate {
-		log := ctrl.Log.WithName("endpointNeedsUpdate")
-		log.Info("Endpoint needs update",
-			"endpoint", endpoint.Name,
-			"descDiff", descDiff,
-			"apiDiff", apiDiff,
-			"baseDiff", baseDiff,
-			"caDiff", caDiff,
-			"toolsDiff", toolsDiff,
-			"internalDiff", internalDiff,
-			"spec.APIBaseURL", endpoint.Spec.APIBaseURL,
-			"garm.APIBaseURL", garmEndpoint.APIBaseURL,
-			"spec.BaseURL", endpoint.Spec.BaseURL,
-			"garm.BaseURL", garmEndpoint.BaseURL,
-			"spec.ToolsMetadataURL", endpoint.Spec.ToolsMetadataURL,
-			"garm.ToolsMetadataURL", garmEndpoint.ToolsMetadataURL,
-			"spec.UseInternalToolsMetadata", endpoint.Spec.UseInternalToolsMetadata,
-			"garm.UseInternalToolsMetadata", garmEndpoint.UseInternalToolsMetadata,
-		)
-	}
 
 	return needsUpdate
 }

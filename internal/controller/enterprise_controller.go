@@ -19,10 +19,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	crEvent "sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	garmoperatorv1beta1 "github.com/mercedes-benz/garm-operator/api/v1beta1"
 	"github.com/mercedes-benz/garm-operator/pkg/annotations"
@@ -37,8 +39,9 @@ import (
 // EnterpriseReconciler reconciles a Enterprise object
 type EnterpriseReconciler struct {
 	client.Client
-	Scheme   *runtime.Scheme
-	Recorder record.EventRecorder
+	Scheme        *runtime.Scheme
+	Recorder      record.EventRecorder
+	ReconcileChan chan crEvent.GenericEvent
 }
 
 //+kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
@@ -316,13 +319,19 @@ func (r *EnterpriseReconciler) findEnterprisesForCredentials(ctx context.Context
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *EnterpriseReconciler) SetupWithManager(mgr ctrl.Manager, options controller.Options) error {
-	return ctrl.NewControllerManagedBy(mgr).
+	builder := ctrl.NewControllerManagedBy(mgr).
 		For(&garmoperatorv1beta1.Enterprise{}).
 		Watches(
 			&garmoperatorv1beta1.GitHubCredential{},
 			handler.EnqueueRequestsFromMapFunc(r.findEnterprisesForCredentials),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
-		WithOptions(options).
-		Complete(r)
+		WithOptions(options)
+
+	// Watch for websocket events if channel is provided
+	if r.ReconcileChan != nil {
+		builder = builder.WatchesRawSource(source.Channel(r.ReconcileChan, &handler.EnqueueRequestForObject{}))
+	}
+
+	return builder.Complete(r)
 }

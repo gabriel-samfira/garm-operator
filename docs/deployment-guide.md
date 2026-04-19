@@ -436,9 +436,15 @@ spec:
   # runnerPrefix: "my-prefix"
   # githubRunnerGroup: ""
   # disableUpdate: false
+  # customLabels:             # additional labels for the scale set (create-only)
+  #   - self-hosted
+  #   - linux
+  #   - x64
 ```
 
 Like Pools, Scale Sets reference a `githubScopeRef` to define which entity (Repository, Organization, or Enterprise) the runners belong to. The `imageName` must reference an existing `Image` CR.
+
+The optional `customLabels` field allows you to specify additional labels for the scale set. The scale set name is always included as a system label automatically. Custom labels can only be set when creating the scale set and are read-only after that — the GitHub API does not support updating labels on an existing scale set.
 
 Verify the scale set was created:
 

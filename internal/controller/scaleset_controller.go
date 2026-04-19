@@ -8,7 +8,10 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"time"
 
+	garmProviderParams "github.com/cloudbase/garm-provider-common/params"
+	"github.com/cloudbase/garm/client/instances"
 	"github.com/cloudbase/garm/client/scalesets"
 	"github.com/cloudbase/garm/params"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -74,6 +77,7 @@ func (r *ScaleSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 	}
 
 	scaleSetClient := garmClient.NewScaleSetClient()
+	instanceClient := garmClient.NewInstanceClient()
 
 	// Initialize conditions to unknown if not set already
 	scaleSet.InitializeConditions()
@@ -91,7 +95,7 @@ func (r *ScaleSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 
 	// handle deletion
 	if !scaleSet.ObjectMeta.DeletionTimestamp.IsZero() {
-		return r.reconcileDelete(ctx, scaleSetClient, scaleSet)
+		return r.reconcileDelete(ctx, scaleSetClient, scaleSet, instanceClient)
 	}
 
 	return r.reconcileNormal(ctx, scaleSetClient, scaleSet)
@@ -192,7 +196,7 @@ func (r *ScaleSetReconciler) reconcileUpdate(ctx context.Context, scaleSetClient
 	return ctrl.Result{}, nil
 }
 
-func (r *ScaleSetReconciler) reconcileDelete(ctx context.Context, scaleSetClient garmClient.ScaleSetClient, scaleSet *garmoperatorv1beta1.ScaleSet) (ctrl.Result, error) {
+func (r *ScaleSetReconciler) reconcileDelete(ctx context.Context, scaleSetClient garmClient.ScaleSetClient, scaleSet *garmoperatorv1beta1.ScaleSet, instanceClient garmClient.InstanceClient) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 	log.Info("Deleting ScaleSet", "scaleSet", scaleSet.Name)
 	event.Deleting(r.Recorder, scaleSet, "")
@@ -201,7 +205,7 @@ func (r *ScaleSetReconciler) reconcileDelete(ctx context.Context, scaleSetClient
 		return ctrl.Result{}, err
 	}
 
-	// scale set does not exist in garm database yet
+	// scale set does not exist in garm database yet as ID in Status is empty
 	if scaleSet.Status.ID == "" && controllerutil.ContainsFinalizer(scaleSet, key.ScaleSetFinalizerName) {
 		controllerutil.RemoveFinalizer(scaleSet, key.ScaleSetFinalizerName)
 		if err := r.Update(ctx, scaleSet); err != nil {
@@ -214,17 +218,59 @@ func (r *ScaleSetReconciler) reconcileDelete(ctx context.Context, scaleSetClient
 		return ctrl.Result{}, nil
 	}
 
-	// disable scale set before deleting
+	// disable scale set in spec
+	scaleSet.Spec.MinIdleRunners = 0
+	scaleSet.Spec.Enabled = false
+	if err := r.Update(ctx, scaleSet); err != nil {
+		conditions.MarkFalse(scaleSet, conditions.ReadyCondition, conditions.ReconcileErrorReason, err.Error())
+		r.errorLog(ctx, scaleSet, err)
+		return ctrl.Result{}, err
+	}
+
+	// disable scale set in garm
 	disabled := false
+	minIdle := uint(0)
 	_, err := scaleSetClient.UpdateScaleSet(scalesets.NewUpdateScaleSetParams().
 		WithScalesetID(scaleSet.Status.ID).
 		WithBody(params.UpdateScaleSetParams{
-			Enabled: &disabled,
+			Enabled:        &disabled,
+			MinIdleRunners: &minIdle,
 		}))
 	if err != nil {
 		conditions.MarkFalse(scaleSet, conditions.ReadyCondition, conditions.DeletionFailedReason, err.Error())
 		r.errorLog(ctx, scaleSet, err)
 		return ctrl.Result{}, err
+	}
+
+	// get all runners for this scale set
+	runners, err := instanceClient.ListScaleSetInstances(
+		instances.NewListScaleSetInstancesParams().WithScalesetID(scaleSet.Status.ID))
+	if err != nil {
+		return ctrl.Result{RequeueAfter: 1 * time.Minute}, err
+	}
+
+	// filter runners that are in a deletable state
+	var deletableRunners []params.Instance
+	for _, runner := range runners.Payload {
+		switch runner.Status {
+		case garmProviderParams.InstanceRunning, garmProviderParams.InstanceError:
+			deletableRunners = append(deletableRunners, runner)
+		default:
+			log.V(1).Info("Runner is in state that does not allow deletion", "runner", runner.Name, "state", runner.Status)
+		}
+	}
+
+	// update idle runners count in status
+	scaleSet.Status.LongRunningIdleRunners = uint(len(deletableRunners))
+
+	// scale down - delete all deletable runners
+	log.Info("Scaling scale set down before deletion", "scaleSet", scaleSet.Name, "deletableRunners", len(deletableRunners))
+	event.Scaling(r.Recorder, scaleSet, fmt.Sprintf("scale idle runners down to 0 before deleting"))
+
+	for _, runner := range deletableRunners {
+		if err := instanceClient.DeleteInstance(instances.NewDeleteInstanceParams().WithInstanceName(runner.Name)); err != nil {
+			log.Error(err, "unable to delete runner", "runner", runner.Name)
+		}
 	}
 
 	// delete scale set in garm
@@ -305,6 +351,8 @@ func (r *ScaleSetReconciler) compareScaleSetSpecs(ctx context.Context, scaleSet 
 	}
 
 	// Copy server-managed fields from garm response to avoid false DeepEqual positives
+	// Tags (custom labels) are read-only after creation, so always copy from server
+	tmpGarmScaleSet.Tags = garmScaleSet.Payload.Tags
 	tmpGarmScaleSet.Generation = garmScaleSet.Payload.Generation
 	tmpGarmScaleSet.Endpoint = garmScaleSet.Payload.Endpoint
 	tmpGarmScaleSet.CreatedAt = garmScaleSet.Payload.CreatedAt
